@@ -2,17 +2,15 @@
 # Step CA Web Interface - Multi-stage Dockerfile
 # ============================================================
 # Usage:
-#   # Build for current platform (default: linux/amd64)
+#   # Build for current platform
 #   docker build -t step-ca-web .
 #
-#   # Build for specific OS/arch
-#   docker build --build-arg TARGETOS=linux --build-arg TARGETARCH=arm64 -t step-ca-web .
+#   # Build for specific platform (requires buildx)
+#   docker buildx build --platform linux/arm64 -t step-ca-web .
+#   docker buildx build --platform linux/amd64 -t step-ca-web .
 #
-#   # Build for Windows
-#   docker build --build-arg TARGETOS=windows --build-arg TARGETARCH=amd64 -t step-ca-web .
-#
-#   # Build for macOS (Apple Silicon)
-#   docker build --build-arg TARGETOS=darwin --build-arg TARGETARCH=arm64 -t step-ca-web .
+#   # Build multi-platform image
+#   docker buildx build --platform linux/amd64,linux/arm64 -t step-ca-web .
 #
 #   # Run
 #   docker run -p 8080:8080 step-ca-web --ca-url https://your-ca:443
@@ -24,10 +22,6 @@
 #     --tls-cert /certs/tls.crt \
 #     --tls-key /certs/tls.key
 # ============================================================
-
-# --- Build arguments ---
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
 
 # ============================================================
 # Stage 1: Build Vue frontend
@@ -47,9 +41,8 @@ RUN npm run build
 # ============================================================
 # Stage 2: Build Go binary
 # ============================================================
-FROM golang:1.23-alpine AS go-builder
+FROM golang:1.24-alpine AS go-builder
 
-ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 
 RUN apk add --no-cache git ca-certificates
@@ -66,24 +59,15 @@ COPY . .
 # Copy the built frontend assets into the embed directory
 COPY --from=frontend-builder /build/web/dist ./web/dist/
 
-# Build the Go binary for the target platform
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+# Build the Go binary for the target architecture (always linux to match alpine runtime)
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} \
     go build -ldflags="-s -w -X main.version=$(date +%Y%m%d)" \
-    -o /out/step-ca-web${TARGETOS:+.exe} .
-
-# Rename to consistent name for the next stage
-RUN if [ "${TARGETOS}" = "windows" ]; then \
-      cp /out/step-ca-web.exe /out/step-ca-web-bin; \
-    else \
-      cp /out/step-ca-web /out/step-ca-web-bin; \
-    fi
+    -o /out/step-ca-web .
 
 # ============================================================
 # Stage 3: Final minimal image
 # ============================================================
 FROM alpine:3.19
-
-ARG TARGETOS=linux
 
 RUN apk add --no-cache ca-certificates tzdata
 
@@ -93,7 +77,7 @@ RUN adduser -D -h /app appuser
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=go-builder /out/step-ca-web-bin ./step-ca-web
+COPY --from=go-builder /out/step-ca-web ./step-ca-web
 
 # Set ownership and permissions
 RUN chown appuser:appuser /app/step-ca-web && \

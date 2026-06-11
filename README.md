@@ -99,7 +99,7 @@ A web-based management portal for [smallstep/certificates](https://github.com/sm
 | Build      | Vite, vue-tsc                           |
 | Backend    | Go 1.24, standard library               |
 | Auth       | go-jose/v4 (JWK/JWT), gorilla/securecookie |
-| Container  | Docker multi-stage (Node 20 + Go 1.23 Alpine) |
+| Container  | Docker multi-stage (Node 20 + Go 1.24 Alpine) |
 
 ## Quick Start
 
@@ -162,18 +162,20 @@ Open `http://localhost:8080` in your browser and log in with your provisioner pa
 ### Build
 
 ```bash
-# Default (linux/amd64)
+# Default (current platform)
 docker build -t step-ca-web .
 
-# Custom target platform
-docker build --build-arg TARGETOS=linux --build-arg TARGETARCH=arm64 -t step-ca-web .
+# Specific platform (requires buildx)
+docker buildx build --platform linux/arm64 -t step-ca-web .
+docker buildx build --platform linux/amd64 -t step-ca-web .
+
+# Multi-platform image
+docker buildx build --platform linux/amd64,linux/arm64 -t step-ca-web .
 ```
 
-Supported `TARGETOS` / `TARGETARCH` combinations:
+Supported platforms:
 - `linux/amd64` (default)
 - `linux/arm64`
-- `windows/amd64`
-- `darwin/amd64`, `darwin/arm64`
 
 ### Run
 
