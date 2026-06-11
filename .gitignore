@@ -1,0 +1,11 @@
+# AI
+.qoder
+
+# IDE
+.idea
+
+# artifacts
+step-ca-web.exe
+*.pem
+*.key
+*.crt
