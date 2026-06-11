@@ -4,6 +4,10 @@
 # IDE
 .idea
 
+# Node
+web/node_modules
+web/dist
+
 # artifacts
 step-ca-web.exe
 *.pem

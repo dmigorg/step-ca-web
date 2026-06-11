@@ -1,0 +1,26 @@
+# Node
+web/node_modules
+web/dist
+
+# Go
+step-ca-web.exe
+step-ca-web
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Build artifacts
+*.pem
+cert.pem
+key.pem
