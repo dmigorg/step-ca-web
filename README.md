@@ -16,6 +16,32 @@ A web-based management portal for [smallstep/certificates](https://github.com/sm
 - **Authentication** — password-only login using the CA provisioner access key (no username required)
 - **HTTPS** — optional TLS support with auto-generated self-signed certificates
 
+## Screenshots
+
+**Login**
+
+![Login Screen](docs/screenshots/login-screen.png)
+
+**Dashboard**
+
+![Main Dashboard](docs/screenshots/main-dashboard.png)
+
+**Issue Certificate (Simple)**
+
+![Issue Simple](docs/screenshots/issue-simple.png)
+
+**Provisioners**
+
+![Provisioners](docs/screenshots/provisioners.png)
+
+**Inspector — Certificate**
+
+![Inspector CRT](docs/screenshots/inspector-crt.png)
+
+**Inspector — CSR**
+
+![Inspector CSR](docs/screenshots/inspector-csr.png)
+
 ## Project Structure
 
 ```
