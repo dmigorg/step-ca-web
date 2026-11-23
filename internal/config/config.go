@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -30,6 +31,7 @@ func Parse() (*Config, error) {
 	flag.StringVar(&cfg.CAURL, "ca-url", os.Getenv("STEP_CA_URL"), "Upstream step-ca URL (required)")
 	flag.BoolVar(&cfg.TLSSkipVerify, "tls-skip-verify", true, "Skip TLS verification for upstream CA")
 	flag.StringVar(&cfg.SessionSecret, "session-secret", os.Getenv("STEP_SESSION_SECRET"), "Session encryption secret (auto-generated if empty)")
+	sessionSecretFile := flag.String("session-secret-file", os.Getenv("STEP_WEB_SESSION_SECRET_FILE"), "Read the session encryption secret from this file")
 	flag.IntVar(&cfg.SessionMaxAge, "session-max-age", 3600, "Session lifetime in seconds")
 
 	flag.StringVar(&cfg.InventoryFile, "inventory-file", os.Getenv("STEP_WEB_INVENTORY_FILE"), "Path to the certificate inventory JSON file")
@@ -51,6 +53,17 @@ func Parse() (*Config, error) {
 		}
 	}
 
+	if *sessionSecretFile != "" {
+		if cfg.SessionSecret != "" {
+			return nil, fmt.Errorf("configure the session secret either directly or through a file")
+		}
+		secret, err := readSessionSecret(*sessionSecretFile)
+		if err != nil {
+			return nil, err
+		}
+		cfg.SessionSecret = secret
+	}
+
 	if cfg.SessionSecret == "" {
 		secret, err := generateSecret(32)
 		if err != nil {
@@ -61,6 +74,19 @@ func Parse() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func readSessionSecret(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read session secret file: %w", err)
+	}
+
+	secret := strings.TrimSpace(string(data))
+	if len(secret) < 32 {
+		return "", fmt.Errorf("session secret file must contain at least 32 bytes of key material")
+	}
+	return secret, nil
 }
 
 func envOrDefault(key, defaultValue string) string {

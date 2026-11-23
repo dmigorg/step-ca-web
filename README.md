@@ -155,7 +155,14 @@ Open `http://localhost:8080` in your browser and log in with your provisioner pa
 | `--ca-url`        | `STEP_CA_URL`         |          | Upstream step-ca URL (**required**)              |
 | `--tls-skip-verify` |                     | `true`   | Skip TLS verification for upstream CA            |
 | `--session-secret`| `STEP_SESSION_SECRET` |          | Session encryption secret (auto-generated if empty) |
+| `--session-secret-file` | `STEP_WEB_SESSION_SECRET_FILE` | | File containing the persistent session encryption secret |
 | `--session-max-age` |                     | `3600`   | Session lifetime in seconds                      |
+
+For systemd, create `/etc/step-ca-web/session.secret` as root with mode `0600`
+and populate it with `openssl rand -hex 32`. Install `deploy/session.conf` in
+`/etc/systemd/system/step-ca-web.service.d/`, reload systemd, and restart the web
+service. Reuse the credential across upgrades to keep existing sessions until
+they expire. Generate a new secret to invalidate all sessions.
 
 ## Docker
 
