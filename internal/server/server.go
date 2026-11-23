@@ -36,6 +36,7 @@ func (s *Server) SetupRoutes() http.Handler {
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/version", s.handleVersion)
 
+	mux.Handle("GET /api/certificates/issued", s.authMW(http.HandlerFunc(s.handleInventory)))
 	mux.Handle("GET /api/roots", s.authMW(http.HandlerFunc(s.handleRoots)))
 	mux.Handle("GET /api/intermediates", s.authMW(http.HandlerFunc(s.handleIntermediates)))
 	mux.Handle("GET /api/provisioners", s.authMW(http.HandlerFunc(s.handleProvisioners)))

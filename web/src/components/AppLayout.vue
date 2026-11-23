@@ -27,6 +27,11 @@
           <template #title>Certificates</template>
         </el-menu-item>
 
+        <el-menu-item index="/certificates/issued">
+          <el-icon><List /></el-icon>
+          <template #title>Выданные сертификаты</template>
+        </el-menu-item>
+
         <el-menu-item index="/roots">
           <el-icon><Key /></el-icon>
           <template #title>Roots</template>
@@ -75,7 +80,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { Expand, Fold } from '@element-plus/icons-vue'
+import { Expand, Fold, List } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()

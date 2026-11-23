@@ -17,6 +17,7 @@ type Config struct {
 	TLSSkipVerify bool
 	SessionSecret string
 	SessionMaxAge int
+	InventoryFile string
 }
 
 func Parse() (*Config, error) {
@@ -30,6 +31,8 @@ func Parse() (*Config, error) {
 	flag.BoolVar(&cfg.TLSSkipVerify, "tls-skip-verify", true, "Skip TLS verification for upstream CA")
 	flag.StringVar(&cfg.SessionSecret, "session-secret", os.Getenv("STEP_SESSION_SECRET"), "Session encryption secret (auto-generated if empty)")
 	flag.IntVar(&cfg.SessionMaxAge, "session-max-age", 3600, "Session lifetime in seconds")
+
+	flag.StringVar(&cfg.InventoryFile, "inventory-file", os.Getenv("STEP_WEB_INVENTORY_FILE"), "Path to the certificate inventory JSON file")
 
 	flag.Parse()
 

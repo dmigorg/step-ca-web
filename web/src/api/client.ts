@@ -17,7 +17,8 @@ import type {
   CSRInfo,
   ApiError,
   CNFParsedResult,
-  SignCNFRequest
+  SignCNFRequest,
+  CertificateInventory
 } from '@/types'
 
 const api = axios.create({
@@ -53,6 +54,11 @@ export const authApi = {
 }
 
 export const caApi = {
+  async issuedCertificates(): Promise<CertificateInventory> {
+    const response = await api.get<CertificateInventory>('/api/certificates/issued')
+    return response.data
+  },
+
   async health(): Promise<HealthResponse> {
     const response = await api.get<HealthResponse>('/api/health')
     return response.data

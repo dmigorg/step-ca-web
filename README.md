@@ -228,6 +228,20 @@ npm run dev
 
 The Vite dev server runs on `http://localhost:5173` and proxies `/api/*` and `/auth/*` to the Go backend.
 
+## Issued certificate inventory (systemd)
+
+The **Выданные сертификаты** page lists observed X.509 certificates with their subject, SANs, serial, source, and validity dates. The read-only API requires a signed-in session. The collector imports the retained `step-ca.service` journal and saves entries by serial as the journal advances. ACME certificates appear when the client retrieves them. The expiry filter is based on validity dates alone.
+
+For a systemd installation:
+
+1. Create the system group `step-ca-web-inventory`.
+2. Install `deploy/collect-inventory.py` under `/usr/local/lib/step-ca-web/`.
+3. Install `deploy/step-ca-web-inventory.service` and `deploy/step-ca-web-inventory.timer` under `/etc/systemd/system/`.
+4. Install `deploy/inventory.conf` under `/etc/systemd/system/step-ca-web.service.d/`.
+5. Run `systemctl daemon-reload`, `systemctl start step-ca-web-inventory.service`, `systemctl enable --now step-ca-web-inventory.timer`, and restart the web service.
+
+`STEP_WEB_INVENTORY_FILE` selects the inventory file read by the web service.
+
 ## License
 
 MIT

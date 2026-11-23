@@ -1,0 +1,14 @@
+[Unit]
+Description=Index X.509 certificate metadata from the step-ca journal
+
+[Service]
+Type=oneshot
+Group=step-ca-web-inventory
+StateDirectory=step-ca-web-inventory
+StateDirectoryMode=0750
+UMask=0027
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ExecStart=/usr/bin/python3 /usr/local/lib/step-ca-web/collect-inventory.py /var/lib/step-ca-web-inventory/inventory.json

@@ -1,0 +1,10 @@
+[Unit]
+Description=Update the step-ca web certificate inventory
+
+[Timer]
+OnBootSec=1min
+OnUnitInactiveSec=1min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

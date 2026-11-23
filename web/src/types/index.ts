@@ -138,3 +138,16 @@ export interface SignCNFRequest {
   notBefore?: string
   notAfter?: string
 }
+
+export interface IssuedCertificate {
+  serial: string
+  subject: string
+  sans: string
+  source: string
+  notBefore: string
+  notAfter: string
+}
+
+export interface CertificateInventory {
+  certificates: IssuedCertificate[]
+}
