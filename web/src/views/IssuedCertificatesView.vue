@@ -1,17 +1,17 @@
 <template>
   <AppLayout>
-    <template #title>Выданные сертификаты</template>
-    <section class="inventory" aria-label="Реестр сертификатов">
+    <template #title>Issued Certificates</template>
+    <section class="inventory" aria-label="Certificate inventory">
       <div class="toolbar">
-        <el-input v-model="query" aria-label="Поиск по домену или серийному номеру"
-          placeholder="Домен или серийный номер" clearable />
-        <el-checkbox v-model="includeExpired">Показывать истёкшие</el-checkbox>
-        <el-button :loading="loading" @click="load">Обновить</el-button>
+        <el-input v-model="query" aria-label="Search by domain or serial number"
+          placeholder="Domain or serial number" clearable />
+        <el-checkbox v-model="includeExpired">Show expired</el-checkbox>
+        <el-button :loading="loading" @click="load">Refresh</el-button>
       </div>
       <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
       <el-table v-else v-loading="loading" :data="visibleRows" row-key="serial"
-        :empty-text="loading ? 'Загрузка…' : 'Сертификаты не найдены'" stripe>
-        <el-table-column label="Домен / SAN" min-width="225">
+        :empty-text="loading ? 'Loading…' : 'No certificates found'" stripe>
+        <el-table-column label="Domain / SAN" min-width="225">
           <template #default="{ row }">
             <strong>{{ row.subject || row.sans || '—' }}</strong>
             <div v-if="row.subject && row.sans && row.sans !== row.subject" class="names">
@@ -19,19 +19,19 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="Серийный номер" min-width="210">
+        <el-table-column label="Serial Number" min-width="210">
           <template #default="{ row }">
             <code class="serial">{{ row.serial }}</code>
           </template>
         </el-table-column>
-        <el-table-column prop="source" label="Источник" width="105" />
-        <el-table-column label="Начало действия" min-width="165">
+        <el-table-column prop="source" label="Source" width="105" />
+        <el-table-column label="Not Before" min-width="165">
           <template #default="{ row }">{{ formatDate(row.notBefore) }}</template>
         </el-table-column>
-        <el-table-column label="Окончание действия" min-width="180">
+        <el-table-column label="Not After" min-width="180">
           <template #default="{ row }">
             <div>{{ formatDate(row.notAfter) }}</div>
-            <el-tag v-if="Date.parse(row.notAfter) <= now" type="info" size="small">Срок истёк</el-tag>
+            <el-tag v-if="Date.parse(row.notAfter) <= now" type="info" size="small">Expired</el-tag>
           </template>
         </el-table-column>
       </el-table>
@@ -56,7 +56,7 @@ const page = ref(1)
 const now = ref(Date.now())
 const pageSize = 20
 
-const dateFormat = new Intl.DateTimeFormat('ru-RU', {
+const dateFormat = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
   month: '2-digit',
   day: '2-digit',
@@ -99,7 +99,7 @@ async function load() {
     now.value = Date.now()
     page.value = 1
   } catch {
-    error.value = 'Не удалось загрузить реестр сертификатов. Попробуйте обновить список.'
+    error.value = 'Could not load the certificate inventory. Try refreshing.'
   } finally {
     loading.value = false
   }

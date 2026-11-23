@@ -29,7 +29,7 @@
 
         <el-menu-item index="/certificates/issued">
           <el-icon><List /></el-icon>
-          <template #title>Выданные сертификаты</template>
+          <template #title>Issued Certificates</template>
         </el-menu-item>
 
         <el-menu-item index="/roots">
