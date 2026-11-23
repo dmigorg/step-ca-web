@@ -146,6 +146,7 @@ export interface IssuedCertificate {
   source: string
   notBefore: string
   notAfter: string
+  revoked: boolean
 }
 
 export interface CertificateInventory {

@@ -230,7 +230,7 @@ The Vite dev server runs on `http://localhost:5173` and proxies `/api/*` and `/a
 
 ## Issued certificate inventory (systemd)
 
-The **Issued Certificates** page lists observed X.509 certificates with their subject, SANs, serial, source, and validity dates. The read-only API requires a signed-in session. The collector imports the retained `step-ca.service` journal and saves entries by serial as the journal advances. ACME certificates appear when the client retrieves them. The expiry filter is based on validity dates alone.
+The **Issued Certificates** page shows the latest unexpired certificate per SAN set by default and excludes revocations recorded in the CA journal. Enable **Show history** for previous versions and recorded revocations, and **Show expired** for certificates past their validity period. The read-only API requires a signed-in session. The collector imports the retained `step-ca.service` journal and saves entries by serial as the journal advances. ACME certificates appear when the client retrieves them.
 
 For a systemd installation:
 

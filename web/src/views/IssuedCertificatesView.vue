@@ -5,6 +5,7 @@
       <div class="toolbar">
         <el-input v-model="query" aria-label="Search by domain or serial number"
           placeholder="Domain or serial number" clearable />
+        <el-checkbox v-model="showHistory">Show history</el-checkbox>
         <el-checkbox v-model="includeExpired">Show expired</el-checkbox>
         <el-button :loading="loading" @click="load">Refresh</el-button>
       </div>
@@ -13,9 +14,9 @@
         :empty-text="loading ? 'Loading…' : 'No certificates found'" stripe>
         <el-table-column label="Domain / SAN" min-width="225">
           <template #default="{ row }">
-            <strong>{{ row.subject || row.sans || '—' }}</strong>
-            <div v-if="row.subject && row.sans && row.sans !== row.subject" class="names">
-              {{ row.sans }}
+            <strong>{{ row.subject || row.displaySANs || '—' }}</strong>
+            <div v-if="row.subject && row.displaySANs && row.displaySANs !== row.subject" class="names">
+              {{ row.displaySANs }}
             </div>
           </template>
         </el-table-column>
@@ -31,7 +32,8 @@
         <el-table-column label="Not After" min-width="180">
           <template #default="{ row }">
             <div>{{ formatDate(row.notAfter) }}</div>
-            <el-tag v-if="Date.parse(row.notAfter) <= now" type="info" size="small">Expired</el-tag>
+            <el-tag v-if="row.revoked" type="danger" size="small">Revoked</el-tag>
+            <el-tag v-else-if="row.endsAt <= now" type="info" size="small">Expired</el-tag>
           </template>
         </el-table-column>
       </el-table>
@@ -47,10 +49,18 @@ import AppLayout from '@/components/AppLayout.vue'
 import { caApi } from '@/api/client'
 import type { IssuedCertificate } from '@/types'
 
-const rows = ref<IssuedCertificate[]>([])
+type CertificateRow = IssuedCertificate & {
+  displaySANs: string
+  identity: string
+  startsAt: number
+  endsAt: number
+}
+
+const rows = ref<CertificateRow[]>([])
 const loading = ref(false)
 const error = ref('')
 const query = ref('')
+const showHistory = ref(false)
 const includeExpired = ref(false)
 const page = ref(1)
 const now = ref(Date.now())
@@ -69,25 +79,66 @@ function formatDate(value: string) {
   return dateFormat.format(new Date(value))
 }
 
+function toCertificateRow(cert: IssuedCertificate): CertificateRow {
+  const names: string[] = []
+  const keys: string[] = []
+  const loggedGroups = cert.sans.match(/^map\[(.*)\]$/)?.[1]
+  if (loggedGroups !== undefined) {
+    // step-ca logs SANs as a Go map containing DNS, IP, e-mail and URI lists.
+    for (const [, kind, values] of loggedGroups.matchAll(/(dns|ip|email|uri):\[(.*?)\](?=\s+(?:dns|ip|email|uri):\[|$)/g)) {
+      for (const value of values.trim().split(/\s+/).filter(Boolean)) {
+        names.push(value)
+        keys.push(kind === 'dns' ? 'dns:' + value.toLowerCase().replace(/\.$/, '') : kind + ':' + value)
+      }
+    }
+  }
+
+  const displaySANs = names.join(', ') || (loggedGroups === '' ? '' : cert.sans)
+  const identity = keys.length > 0
+    ? JSON.stringify([...new Set(keys)].sort())
+    : (displaySANs || cert.subject).trim().toLowerCase() || cert.serial
+  return {
+    ...cert,
+    displaySANs,
+    identity,
+    startsAt: Date.parse(cert.notBefore),
+    endsAt: Date.parse(cert.notAfter)
+  }
+}
+
+const matchingValidity = computed(() =>
+  rows.value.filter((row) => includeExpired.value || row.endsAt > now.value)
+)
+
+const displayed = computed(() => {
+  if (showHistory.value) return matchingValidity.value
+
+  const latest = new Map<string, CertificateRow>()
+  for (const row of matchingValidity.value) {
+    if (row.revoked) continue
+    const previous = latest.get(row.identity)
+    const newer = !previous || row.startsAt > previous.startsAt
+    const laterExpiry = previous && row.startsAt === previous.startsAt && row.endsAt > previous.endsAt
+    if (newer || laterExpiry) latest.set(row.identity, row)
+  }
+  return [...latest.values()]
+})
+
 const filtered = computed(() => {
   const term = query.value.trim().toLowerCase()
-  return rows.value.filter((row) => {
-    const withinTerm = Date.parse(row.notAfter) > now.value
-    const matches = [row.subject, row.sans, row.serial].some((value) => value.toLowerCase().includes(term))
-    return (includeExpired.value || withinTerm) && matches
-  }).sort((left, right) => {
-    const leftExpiry = Date.parse(left.notAfter)
-    const rightExpiry = Date.parse(right.notAfter)
-    const leftExpired = leftExpiry <= now.value
-    const rightExpired = rightExpiry <= now.value
+  return displayed.value.filter((row) =>
+    [row.subject, row.displaySANs, row.serial].some((value) => value.toLowerCase().includes(term))
+  ).sort((left, right) => {
+    const leftExpired = left.endsAt <= now.value
+    const rightExpired = right.endsAt <= now.value
     if (leftExpired !== rightExpired) return leftExpired ? 1 : -1
-    return leftExpired ? rightExpiry - leftExpiry : leftExpiry - rightExpiry
+    return leftExpired ? right.endsAt - left.endsAt : left.endsAt - right.endsAt
   })
 })
 
 const visibleRows = computed(() => filtered.value.slice((page.value - 1) * pageSize, page.value * pageSize))
 
-watch([query, includeExpired], () => {
+watch([query, showHistory, includeExpired], () => {
   page.value = 1
 })
 
@@ -95,7 +146,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    rows.value = (await caApi.issuedCertificates()).certificates
+    rows.value = (await caApi.issuedCertificates()).certificates.map(toCertificateRow)
     now.value = Date.now()
     page.value = 1
   } catch {

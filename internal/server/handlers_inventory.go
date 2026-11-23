@@ -15,6 +15,7 @@ type issuedCertificate struct {
 	Source    string    `json:"source"`
 	NotBefore time.Time `json:"notBefore"`
 	NotAfter  time.Time `json:"notAfter"`
+	Revoked   bool      `json:"revoked"`
 }
 
 type inventoryResponse struct {

@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-def certificate_from(message):
+def fields_from(message):
     try:
         if message.startswith("{"):
             fields = json.loads(message)
@@ -23,12 +23,12 @@ def certificate_from(message):
             )
     except ValueError:
         return None
+    return fields if isinstance(fields, dict) else None
 
+
+def certificate_from(fields, serial):
     path = str(fields.get("path", ""))
-    status = str(fields.get("status", ""))
-    serial = str(fields.get("serial", ""))
-    if not (re.fullmatch(r"2[0-9]{2}", status) and re.fullmatch(r"[0-9]+", serial)
-            and fields.get("certificate")):
+    if not fields.get("certificate"):
         return None
 
     if re.fullmatch(r"/acme/[^/]+/(certificate|finalize)/[^/]+", path):
@@ -41,7 +41,7 @@ def certificate_from(message):
     try:
         begin = datetime.fromisoformat(fields["valid-from"].replace("Z", "+00:00"))
         end = datetime.fromisoformat(fields["valid-to"].replace("Z", "+00:00"))
-    except (KeyError, ValueError):
+    except (AttributeError, KeyError, ValueError):
         return None
     if begin.tzinfo is None or end.tzinfo is None:
         return None
@@ -56,7 +56,7 @@ def certificate_from(message):
     }
 
 
-def read_journal(cursor, certificates):
+def read_journal(cursor, certificates, revoked):
     args = ["/usr/bin/journalctl", "--unit", "step-ca.service", "--output", "json", "--no-pager"]
     if cursor:
         args.append("--after-cursor=" + cursor)
@@ -67,9 +67,19 @@ def read_journal(cursor, certificates):
             message = entry.get("MESSAGE")
             if not isinstance(message, str):
                 continue
-            certificate = certificate_from(message)
+            fields = fields_from(message)
+            if not fields or not re.fullmatch(r"2[0-9]{2}", str(fields.get("status", ""))):
+                continue
+            serial = str(fields.get("serial", fields.get("serialNumber", "")))
+            if not re.fullmatch(r"[0-9]+", serial):
+                continue
+            path = str(fields.get("path", ""))
+            if re.fullmatch(r"/(?:(?:1\.0/)?revoke|acme/[^/]+/revoke-cert)", path):
+                revoked.add(serial)
+                continue
+            certificate = certificate_from(fields, serial)
             if certificate is not None:
-                certificates[certificate["serial"]] = certificate
+                certificates[serial] = certificate
         code = journal.wait()
     if code:
         raise subprocess.CalledProcessError(code, args[:6])
@@ -81,14 +91,23 @@ def collect(path):
     if path.exists():
         state = json.loads(path.read_text(encoding="utf-8"))
     certificates = {entry["serial"]: entry for entry in state["certificates"]}
+    revoked = set(state.get("revokedSerials", []))
+    # Rescan once to import revocations when upgrading an older inventory.
+    cursor = state["cursor"] if "revokedSerials" in state else ""
     try:
-        cursor = read_journal(state["cursor"], certificates)
+        cursor = read_journal(cursor, certificates, revoked)
     except subprocess.CalledProcessError:
-        if not state["cursor"]:
+        if not cursor:
             raise
-        cursor = read_journal("", certificates)
+        cursor = read_journal("", certificates, revoked)
 
-    payload = {"cursor": cursor, "certificates": list(certificates.values())}
+    payload = {
+        "cursor": cursor,
+        "revokedSerials": sorted(revoked),
+        "certificates": [
+            {**entry, "revoked": serial in revoked} for serial, entry in certificates.items()
+        ],
+    }
     with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as tmp:
         staged = Path(tmp.name)
         try:

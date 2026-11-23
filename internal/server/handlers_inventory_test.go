@@ -16,7 +16,7 @@ func TestInventoryRequiresSessionAndReturnsOnlyCertificateData(t *testing.T) {
 	t.Parallel()
 
 	path := filepath.Join(t.TempDir(), "inventory.json")
-	data := `{"cursor":"journal-cursor","certificates":[{"serial":"123","subject":"app.example","sans":"app.example","source":"ACME","notBefore":"2026-11-23T12:00:00Z","notAfter":"2026-11-24T12:00:00Z","extra":"discarded"}]}`
+	data := `{"cursor":"journal-cursor","certificates":[{"serial":"123","subject":"app.example","sans":"app.example","source":"ACME","notBefore":"2026-11-23T12:00:00Z","notAfter":"2026-11-24T12:00:00Z","revoked":true,"extra":"discarded"}]}`
 	if err := os.WriteFile(path, []byte(data), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestInventoryRequiresSessionAndReturnsOnlyCertificateData(t *testing.T) {
 		t.Fatalf("inventory with session returned %d, want %d", signedIn.Code, http.StatusOK)
 	}
 	body := signedIn.Body.String()
-	if !strings.Contains(body, `"serial":"123"`) || strings.Contains(body, "journal-cursor") || strings.Contains(body, "discarded") {
+	if !strings.Contains(body, `"serial":"123"`) || !strings.Contains(body, `"revoked":true`) || strings.Contains(body, "journal-cursor") || strings.Contains(body, "discarded") {
 		t.Errorf("inventory response = %q, want the certificate fields only", body)
 	}
 	if got := signedIn.Header().Get("Cache-Control"); got != "private, no-store" {
