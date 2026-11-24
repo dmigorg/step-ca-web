@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -95,23 +96,21 @@ func (s *Server) policyResponse(doc settingsDocument) policySettings {
 	return response
 }
 
-func (s *Server) backupPolicy(current settingsDocument) error {
+func (s *Server) stagePolicyBackup(current settingsDocument) (string, error) {
 	if s.cfg.PolicyBackupFile == "" {
-		return nil
+		return "", nil
 	}
 	f, err := os.CreateTemp(filepath.Dir(s.cfg.PolicyBackupFile), ".previous-policy-*")
 	if err != nil {
-		return err
+		return "", err
 	}
-	defer os.Remove(f.Name())
-	if err := json.NewEncoder(f).Encode(current); err != nil {
-		f.Close()
-		return err
+	writeErr := json.NewEncoder(f).Encode(current)
+	closeErr := f.Close()
+	if err := errors.Join(writeErr, closeErr); err != nil {
+		os.Remove(f.Name())
+		return "", err
 	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	return os.Rename(f.Name(), s.cfg.PolicyBackupFile)
+	return f.Name(), nil
 }
 
 func (s *Server) handlePolicySettings(w http.ResponseWriter, r *http.Request) {
@@ -164,9 +163,13 @@ func (s *Server) handlePolicySettings(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, s.policyResponse(next))
 		return
 	}
-	if err := s.backupPolicy(current); err != nil {
-		s.settingsError(w, r, fmt.Errorf("save previous issuance policy: %w", err))
+	backup, err := s.stagePolicyBackup(current)
+	if err != nil {
+		s.settingsError(w, r, fmt.Errorf("prepare previous issuance policy: %w", err))
 		return
+	}
+	if backup != "" {
+		defer os.Remove(backup)
 	}
 
 	var saved settingsDocument
@@ -182,6 +185,11 @@ func (s *Server) handlePolicySettings(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.settingsError(w, r, err)
 		return
+	}
+	if backup != "" {
+		if err := os.Rename(backup, s.cfg.PolicyBackupFile); err != nil {
+			slog.ErrorContext(r.Context(), "publish previous issuance policy", "err", err)
+		}
 	}
 	result := s.policyResponse(saved)
 	s.auditSettings(r, "authority issuance policy", result.Revision)
