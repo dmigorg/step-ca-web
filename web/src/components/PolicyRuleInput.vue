@@ -23,11 +23,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-
 const props = defineProps<{ modelValue: string[]; placeholder: string }>()
 const emit = defineEmits<{ 'update:modelValue': [rules: string[]] }>()
-const candidate = ref('')
+const candidate = defineModel<string>('candidate', { required: true })
 
 function add() {
   const value = candidate.value.trim()
