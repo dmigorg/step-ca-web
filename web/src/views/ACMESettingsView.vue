@@ -16,7 +16,8 @@
           v-else-if="current"
           label-position="top"
           class="settings-form"
-          @submit.prevent="review"
+          :disabled="saving"
+          @submit.prevent="save"
         >
           <h3>Certificate Lifetime</h3>
           <div class="lifetimes">
@@ -46,20 +47,13 @@
             Additional configured methods: {{ current.additionalChallenges.join(', ') }}
           </p>
 
-          <el-button type="primary" native-type="submit" :disabled="!changes.length">
-            Review Changes
+          <el-alert v-if="saveError" :title="saveError" type="error" :closable="false" show-icon class="save-error" />
+          <el-button type="primary" native-type="submit" :disabled="!hasChanges" :loading="saving">
+            Save Changes
           </el-button>
           <el-button @click="reset">Reset</el-button>
         </el-form>
       </el-card>
-
-      <SettingsConfirm
-        v-model="reviewing"
-        :changes="changes"
-        :saving="saving"
-        :error="saveError"
-        @confirm="save"
-      />
     </div>
   </AppLayout>
 </template>
@@ -69,9 +63,8 @@ import { computed, onMounted, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import AppLayout from '@/components/AppLayout.vue'
-import SettingsConfirm from '@/components/SettingsConfirm.vue'
 import { caApi, getErrorMessage } from '@/api/client'
-import type { ACMEProvisionerSettings, CertificateLifetimes, SettingsChange } from '@/types'
+import type { ACMEProvisionerSettings, CertificateLifetimes } from '@/types'
 
 const lifetimeFields = [
   { key: 'min', label: 'Minimum' },
@@ -89,7 +82,6 @@ const current = ref<ACMEProvisionerSettings>()
 const durations = ref<CertificateLifetimes>({ min: '', default: '', max: '' })
 const useDefaultChallenges = ref(true)
 const challenges = ref<string[]>([])
-const reviewing = ref(false)
 const loading = ref(false)
 const saving = ref(false)
 const loadError = ref('')
@@ -99,30 +91,19 @@ function setChallenges(values: (string | number | boolean)[]) {
   challenges.value = values.filter((value): value is string => typeof value === 'string')
 }
 
-function renderChallenges(useDefaults: boolean, methods: string[]) {
-  if (useDefaults) return 'CA defaults (HTTP-01, DNS-01, TLS-ALPN-01)'
-  return allowedChallenges.filter(({value}) => methods.includes(value)).map(({label}) => label).join(', ') || 'None selected'
-}
-
-const changes = computed(() => {
+const hasChanges = computed(() => {
   const saved = current.value
-  const result: SettingsChange[] = []
-  if (!saved) return result
-
-  for (const field of lifetimeFields) {
-    const before = saved.durations[field.key]
-    const after = durations.value[field.key].trim()
-    const inherited = 'Inherited (' + saved.defaults[field.key] + ')'
-    if (before !== after) result.push({ label: field.label + ' Lifetime', before: before || inherited, after: after || inherited })
-  }
-  const before = renderChallenges(saved.useDefaultChallenges, saved.challenges)
-  const after = renderChallenges(useDefaultChallenges.value, challenges.value)
-  if (before !== after) result.push({ label: 'Challenge Methods', before, after })
-  return result
+  if (!saved) return false
+  return lifetimeFields.some(({ key }) => saved.durations[key] !== durations.value[key].trim()) ||
+    saved.useDefaultChallenges !== useDefaultChallenges.value ||
+    (!useDefaultChallenges.value &&
+      (saved.challenges.length !== challenges.value.length ||
+        saved.challenges.some(method => !challenges.value.includes(method))))
 })
 
 function reset() {
   if (!current.value) return
+  saveError.value = ''
   durations.value = { ...current.value.durations }
   useDefaultChallenges.value = current.value.useDefaultChallenges
   challenges.value = [...current.value.challenges]
@@ -131,6 +112,7 @@ function reset() {
 async function load() {
   loading.value = true
   loadError.value = ''
+  saveError.value = ''
   try {
     current.value = await caApi.acmeSettings()
     reset()
@@ -141,14 +123,8 @@ async function load() {
   }
 }
 
-function review() {
-  if (!changes.value.length) return
-  saveError.value = ''
-  reviewing.value = true
-}
-
 async function save() {
-  if (!current.value) return
+  if (!current.value || saving.value || !hasChanges.value) return
   saving.value = true
   saveError.value = ''
   try {
@@ -163,7 +139,6 @@ async function save() {
       challenges: challenges.value
     })
     reset()
-    reviewing.value = false
     ElMessage.success('ACME settings saved')
   } catch (error) {
     saveError.value = getErrorMessage(error)

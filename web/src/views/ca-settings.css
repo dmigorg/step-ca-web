@@ -25,6 +25,10 @@
   font-size: 13px;
 }
 
+.save-error {
+  margin-bottom: 16px;
+}
+
 @media (max-width: 720px) {
   .settings-content {
     padding: 0;

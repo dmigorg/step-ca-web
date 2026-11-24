@@ -153,12 +153,6 @@ export interface CertificateInventory {
   certificates: IssuedCertificate[]
 }
 
-export interface SettingsChange {
-  label: string
-  before: string
-  after: string
-}
-
 export interface CertificateLifetimes {
   min: string
   default: string
