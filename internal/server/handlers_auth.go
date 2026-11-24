@@ -42,7 +42,8 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var jwkProv *ca.ProvisionerKey
 	var kid string
 	for _, p := range provisioners.Provisioners {
-		if p.Type == "JWK" && p.EncryptedKey != "" {
+		if p.Type == "JWK" && p.EncryptedKey != "" &&
+			(s.cfg.LoginProvisioner == "" || p.Name == s.cfg.LoginProvisioner) {
 			if p.Key != nil {
 				var keyData struct {
 					KID string `json:"kid"`

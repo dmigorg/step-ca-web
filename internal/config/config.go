@@ -5,20 +5,26 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 )
 
 type Config struct {
-	ListenAddr    string
-	HTTPSListen   string
-	TLSCert       string
-	TLSKey        string
-	CAURL         string
-	TLSSkipVerify bool
-	SessionSecret string
-	SessionMaxAge int
-	InventoryFile string
+	ListenAddr            string
+	HTTPSListen           string
+	TLSCert               string
+	TLSKey                string
+	CAURL                 string
+	TLSSkipVerify         bool
+	SessionSecret         string
+	SessionMaxAge         int
+	InventoryFile         string
+	LoginProvisioner      string
+	AdminCertFile         string
+	AdminKeyFile          string
+	AdminConfirmationHash []byte
+	WebOrigin             string
 }
 
 func Parse() (*Config, error) {
@@ -35,6 +41,12 @@ func Parse() (*Config, error) {
 	flag.IntVar(&cfg.SessionMaxAge, "session-max-age", 3600, "Session lifetime in seconds")
 
 	flag.StringVar(&cfg.InventoryFile, "inventory-file", os.Getenv("STEP_WEB_INVENTORY_FILE"), "Path to the certificate inventory JSON file")
+
+	flag.StringVar(&cfg.LoginProvisioner, "login-provisioner", os.Getenv("STEP_WEB_LOGIN_PROVISIONER"), "JWK provisioner used for web sign-in")
+	flag.StringVar(&cfg.AdminCertFile, "admin-cert", os.Getenv("STEP_WEB_ADMIN_CERT"), "Admin API client certificate chain")
+	flag.StringVar(&cfg.AdminKeyFile, "admin-key", os.Getenv("STEP_WEB_ADMIN_KEY"), "Admin API client private key")
+	flag.StringVar(&cfg.WebOrigin, "web-origin", os.Getenv("STEP_WEB_ORIGIN"), "HTTPS origin allowed to submit settings changes")
+	confirmationFile := flag.String("admin-confirmation-hash-file", os.Getenv("STEP_WEB_ADMIN_CONFIRMATION_HASH_FILE"), "File containing the SHA-256 hash of the random settings confirmation code")
 
 	flag.Parse()
 
@@ -73,6 +85,26 @@ func Parse() (*Config, error) {
 		fmt.Println("Generated random session secret (sessions will not survive restarts)")
 	}
 
+	if cfg.AdminCertFile != "" || cfg.AdminKeyFile != "" || *confirmationFile != "" || cfg.WebOrigin != "" {
+		if cfg.AdminCertFile == "" || cfg.AdminKeyFile == "" || *confirmationFile == "" || cfg.LoginProvisioner == "" {
+			return nil, fmt.Errorf("admin settings require a certificate, key, confirmation hash file, and a sign-in provisioner")
+		}
+		if err := validateAdminURL(cfg.CAURL); err != nil {
+			return nil, fmt.Errorf("invalid admin CA URL: %w", err)
+		}
+		if err := validateAdminURL(cfg.WebOrigin); err != nil {
+			return nil, fmt.Errorf("invalid web origin: %w", err)
+		}
+		raw, err := os.ReadFile(*confirmationFile)
+		if err != nil {
+			return nil, fmt.Errorf("read admin confirmation hash: %w", err)
+		}
+		cfg.AdminConfirmationHash, err = hex.DecodeString(strings.TrimSpace(string(raw)))
+		if err != nil || len(cfg.AdminConfirmationHash) != 32 {
+			return nil, fmt.Errorf("admin confirmation hash must contain 64 hexadecimal characters")
+		}
+	}
+
 	return cfg, nil
 }
 
@@ -102,4 +134,13 @@ func generateSecret(length int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+func validateAdminURL(value string) error {
+	u, err := url.Parse(value)
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil ||
+		(u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
+		return fmt.Errorf("expected an HTTPS origin")
+	}
+	return nil
 }

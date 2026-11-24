@@ -10,10 +10,11 @@ import (
 )
 
 type Server struct {
-	caClient *ca.Client
-	sessMgr  *session.Manager
-	cfg      *config.Config
-	authMW   func(http.Handler) http.Handler
+	caClient    *ca.Client
+	adminClient *ca.AdminClient
+	sessMgr     *session.Manager
+	cfg         *config.Config
+	authMW      func(http.Handler) http.Handler
 }
 
 func New(caClient *ca.Client, sessMgr *session.Manager, cfg *config.Config) *Server {
@@ -21,6 +22,9 @@ func New(caClient *ca.Client, sessMgr *session.Manager, cfg *config.Config) *Ser
 		caClient: caClient,
 		sessMgr:  sessMgr,
 		cfg:      cfg,
+	}
+	if cfg.AdminCertFile != "" {
+		s.adminClient = ca.NewAdminClient(cfg.CAURL, cfg.AdminCertFile, cfg.AdminKeyFile)
 	}
 	s.authMW = auth.Middleware(sessMgr)
 	return s
