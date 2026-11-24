@@ -51,6 +51,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/issuance-policy',
+      name: 'issuance-policy',
+      component: () => import('@/views/IssuancePolicyView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/inspector',
       name: 'inspector',
       component: () => import('@/views/InspectorView.vue'),

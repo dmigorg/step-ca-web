@@ -20,7 +20,9 @@ import type {
   SignCNFRequest,
   CertificateInventory,
   ACMEProvisionerSettings,
-  ACMEProvisionerUpdate
+  ACMEProvisionerUpdate,
+  IssuancePolicySettings,
+  IssuancePolicyUpdate
 } from '@/types'
 
 const api = axios.create({
@@ -62,6 +64,14 @@ export const caApi = {
 
   async updateACMESettings(update: ACMEProvisionerUpdate): Promise<ACMEProvisionerSettings> {
     return (await api.put<ACMEProvisionerSettings>('/api/settings/acme', update)).data
+  },
+
+  async issuancePolicy(): Promise<IssuancePolicySettings> {
+    return (await api.get<IssuancePolicySettings>('/api/settings/issuance-policy')).data
+  },
+
+  async updateIssuancePolicy(update: IssuancePolicyUpdate): Promise<IssuancePolicySettings> {
+    return (await api.put<IssuancePolicySettings>('/api/settings/issuance-policy', update)).data
   },
 
   async issuedCertificates(): Promise<CertificateInventory> {

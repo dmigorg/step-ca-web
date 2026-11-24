@@ -48,6 +48,8 @@ func (s *Server) SetupRoutes() http.Handler {
 	mux.Handle("GET /api/provisioners", s.authMW(http.HandlerFunc(s.handleProvisioners)))
 	mux.Handle("GET /api/settings/acme", s.authMW(http.HandlerFunc(s.handleACMESettings)))
 	mux.Handle("PUT /api/settings/acme", s.authMW(http.HandlerFunc(s.handleACMESettings)))
+	mux.Handle("GET /api/settings/issuance-policy", s.authMW(http.HandlerFunc(s.handlePolicySettings)))
+	mux.Handle("PUT /api/settings/issuance-policy", s.authMW(http.HandlerFunc(s.handlePolicySettings)))
 
 	mux.Handle("POST /api/sign", s.authMW(http.HandlerFunc(s.handleSign)))
 	mux.Handle("POST /api/revoke", s.authMW(http.HandlerFunc(s.handleRevoke)))

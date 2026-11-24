@@ -181,3 +181,26 @@ export interface ACMEProvisionerUpdate {
   challenges: string[]
   confirmation: string
 }
+
+export interface PolicyNames {
+  dns: string[]
+  ips: string[]
+}
+
+export interface IssuancePolicy {
+  allow: PolicyNames
+  deny: PolicyNames
+  allowWildcardNames: boolean
+}
+
+export interface IssuancePolicySettings extends IssuancePolicy {
+  revision: string
+  exists: boolean
+  protectedDNS: string[]
+  previous?: IssuancePolicy
+}
+
+export interface IssuancePolicyUpdate extends IssuancePolicy {
+  revision: string
+  confirmation: string
+}

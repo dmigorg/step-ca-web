@@ -7,7 +7,7 @@
       </div>
 
       <el-menu
-        :default-active="route.path"
+        :default-active="route.name === 'acme-settings' ? '/provisioners' : route.path"
         :collapse="isCollapsed"
         router
         class="sidebar-menu"
@@ -30,6 +30,11 @@
         <el-menu-item index="/certificates/issued">
           <el-icon><List /></el-icon>
           <template #title>Issued Certificates</template>
+        </el-menu-item>
+
+        <el-menu-item index="/issuance-policy">
+          <el-icon><SetUp /></el-icon>
+          <template #title>Issuance Policy</template>
         </el-menu-item>
 
         <el-menu-item index="/roots">
@@ -80,7 +85,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { Expand, Fold, List } from '@element-plus/icons-vue'
+import { Expand, Fold, List, SetUp } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
