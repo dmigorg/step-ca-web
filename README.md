@@ -249,6 +249,47 @@ For a systemd installation:
 
 `STEP_WEB_INVENTORY_FILE` selects the inventory file read by the web service.
 
+## ACME settings and issuance policy
+
+On a standalone Smallstep CA with Admin API enabled, **Provisioners → acme → Edit**
+manages TLS lifetimes and the three server challenge methods. **Issuance Policy**
+manages authority-wide DNS and IP rules. Global TLS lifetimes come from the CA
+configuration. Update `STEP_WEB_CA_TLS_MIN`, `STEP_WEB_CA_TLS_DEFAULT`, and
+`STEP_WEB_CA_TLS_MAX` if the authority overrides its Smallstep defaults.
+
+For a systemd installation:
+
+1. Back up the existing CA configuration and database before enabling remote
+   provisioner management. Configure `STEP_WEB_LOGIN_PROVISIONER` for the existing
+   web sign-in JWK. Use a distinct, privileged bootstrap JWK for the first CA
+   Super Admin.
+2. Issue a certificate chain and P-256 key for a dedicated CA **ADMIN**. Install
+   them as `/etc/step-ca-web/admin/client.crt` and `client.key`, readable only by
+   root and the system group `step-ca-web-admin`. The web service reads the
+   chain on each request and uses the configured CA URL with TLS verification.
+3. Generate a random settings confirmation code with `openssl rand -hex 32`.
+   Deliver the code privately to operators. Write the hexadecimal SHA-256 of the
+   code **without a trailing newline in the hash input** to
+   `/etc/step-ca-web/settings-confirmation.hash` with mode 0600. The browser
+   sends the confirmation code only when applying settings.
+4. Set `STEP_WEB_ORIGIN` to the public HTTPS origin of the panel and
+   `STEP_WEB_LOGIN_PROVISIONER` to the existing login provisioner in
+   `/etc/step-ca-web/admin-ui.env`. Set `STEP_WEB_POLICY_PROTECTED_DNS` to a
+   comma-separated list of DNS names whose issuance and renewal must stay
+   possible. The CA also checks that its administrators can still authenticate.
+5. Install `deploy/settings-admin.conf` into the web service drop-in directory
+   as `settings-admin.conf`. This gives the web service access to its Admin
+   credential and to a private state directory for the previous issuance policy.
+6. Install `deploy/renew-admin-credential.sh` as an executable under
+   `/usr/local/lib/step-ca-web/`, and the paired admin renewal service and timer
+   under `/etc/systemd/system/`. In `/etc/step-ca-web/admin-renew.env` set
+   `STEP_WEB_ADMIN_CA_URL` and `STEP_WEB_ADMIN_CA_ROOT` to the internal CA URL
+   and root PEM. Reload systemd, enable the timer, and restart the web service.
+
+Save the CA's existing ACME provisioner name to preserve its directory URL.
+Keep Admin API calls on the web server and point the browser at the panel's
+own authenticated settings routes.
+
 ## License
 
 MIT

@@ -1,0 +1,17 @@
+[Unit]
+Description=Renew the step-ca web Admin API credential
+Wants=network-online.target
+After=network-online.target step-ca.service
+
+[Service]
+Type=oneshot
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/step-ca-web/admin
+Environment=STEPPATH=/etc/step-ca-web/admin
+EnvironmentFile=/etc/step-ca-web/admin-renew.env
+ExecCondition=/usr/bin/step certificate needs-renewal /etc/step-ca-web/admin/client.crt
+ExecStart=/usr/local/lib/step-ca-web/renew-admin-credential.sh
