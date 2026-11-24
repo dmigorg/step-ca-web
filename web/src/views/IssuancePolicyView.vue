@@ -15,14 +15,6 @@
         <el-form v-else-if="current" label-position="top" class="settings-form" :disabled="saving"
           @submit.prevent="save">
           <p class="hint">These rules apply to all X.509 issuance from this CA, including ACME.</p>
-          <el-alert
-            v-if="current.protectedDNS.length"
-            :title="'Protected DNS names: ' + current.protectedDNS.join(', ')"
-            type="info"
-            :closable="false"
-            show-icon
-            class="protected-names"
-          />
           <div class="rule-columns">
             <div>
               <h3>Allow</h3>
@@ -139,10 +131,6 @@ onMounted(load)
 
 <style scoped src="./ca-settings.css"></style>
 <style scoped>
-.protected-names {
-  margin-bottom: 20px;
-}
-
 .rule-columns {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));

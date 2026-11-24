@@ -36,19 +36,19 @@ func TestACMEUpdatePreservesUnrelatedSettings(t *testing.T) {
 	}
 }
 
-func TestProtectedDNSChecksWildcardDepthAndApex(t *testing.T) {
+func TestApplyPolicyUpdateLeavesRuleValidationToCA(t *testing.T) {
 	t.Parallel()
-	allow := namesPolicy{DNS: []string{"*.example.local"}}
-	if err := protectDNS(allow, namesPolicy{}, false, []string{"host.example.local"}); err != nil {
-		t.Errorf("protected one-level host rejected: %v", err)
+	doc := settingsDocument{"x509": map[string]any{
+		"allow": map[string]any{"emails": []any{"@example.local"}},
+	}}
+	applyPolicyUpdate(doc, policyFields{Deny: namesPolicy{DNS: []string{"ca.example.local"}}})
+	x509 := doc.object("x509")
+	got, _ := x509.object("deny")["dns"].([]string)
+	if strings.Join(got, ",") != "ca.example.local" {
+		t.Errorf("denied DNS sent to step-ca = %v, want ca.example.local", got)
 	}
-	for _, name := range []string{"example.local", "nested.host.example.local"} {
-		if err := protectDNS(allow, namesPolicy{}, false, []string{name}); err == nil {
-			t.Errorf("protectDNS(%s) allowed a wildcard to match the wrong number of labels", name)
-		}
-	}
-	if err := protectDNS(allow, namesPolicy{DNS: []string{"host.example.local"}}, false, []string{"host.example.local"}); err == nil {
-		t.Error("protectDNS allowed an explicit deny to block a protected name")
+	if got := x509.object("allow").strings("emails"); strings.Join(got, ",") != "@example.local" {
+		t.Errorf("existing allowed emails = %v, want @example.local", got)
 	}
 }
 

@@ -189,7 +189,6 @@ export interface IssuancePolicy {
 export interface IssuancePolicySettings extends IssuancePolicy {
   revision: string
   exists: boolean
-  protectedDNS: string[]
   previous?: IssuancePolicy
 }
 

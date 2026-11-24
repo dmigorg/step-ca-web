@@ -271,9 +271,8 @@ For a systemd installation:
    login provisioner. Settings writes must originate at the panel's HTTPS origin.
 4. Set `STEP_WEB_ORIGIN` to the public HTTPS origin of the panel and
    `STEP_WEB_LOGIN_PROVISIONER` to the existing login provisioner in
-   `/etc/step-ca-web/admin-ui.env`. Set `STEP_WEB_POLICY_PROTECTED_DNS` to a
-   comma-separated list of DNS names whose issuance and renewal must stay
-   possible. The CA also checks that its administrators can still authenticate.
+   `/etc/step-ca-web/admin-ui.env`. Step-ca validates issuance policy changes
+   and checks that its administrators can still authenticate.
 5. Install `deploy/settings-admin.conf` into the web service drop-in directory
    as `settings-admin.conf`. This gives the web service access to its Admin
    credential and to a private state directory for the previous issuance policy.
@@ -283,9 +282,11 @@ For a systemd installation:
    `STEP_WEB_ADMIN_CA_URL` and `STEP_WEB_ADMIN_CA_ROOT` to the internal CA URL
    and root PEM. Reload systemd, enable the timer, and restart the web service.
 
-Save the CA's existing ACME provisioner name to preserve its directory URL.
-Keep Admin API calls on the web server and point the browser at the panel's
-own authenticated settings routes.
+Preserve the CA's existing ACME provisioner name to keep its directory URL.
+When running nginx and step-ca on one host, bind the CA listener to loopback
+and proxy the public `/acme/` endpoint on HTTPS to that listener. Keep Admin API
+calls on the web server and point the browser at the panel's authenticated
+settings routes.
 
 ## License
 

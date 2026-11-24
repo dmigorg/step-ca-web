@@ -5,12 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/netip"
 	"os"
 	"path/filepath"
-	"regexp"
-	"slices"
-	"strings"
 
 	"github.com/xix-support/step-ca-web/internal/ca"
 )
@@ -30,93 +26,14 @@ type policyFields struct {
 
 type policySettings struct {
 	policyFields
-	Revision     string        `json:"revision"`
-	Exists       bool          `json:"exists"`
-	ProtectedDNS []string      `json:"protectedDNS"`
-	Previous     *policyFields `json:"previous,omitempty"`
+	Revision string        `json:"revision"`
+	Exists   bool          `json:"exists"`
+	Previous *policyFields `json:"previous,omitempty"`
 }
 
 type policyUpdate struct {
 	policyFields
 	Revision string `json:"revision"`
-}
-
-var dnsLabel = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
-
-func normalizeDNS(value string) (string, error) {
-	rule := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(value)), ".")
-	name := strings.TrimPrefix(rule, "*.")
-	if len(name) == 0 || len(name) > 253 || netipPrefixOrAddress(name) != "" {
-		return "", fmt.Errorf("%q is not a DNS name or wildcard", value)
-	}
-	for _, label := range strings.Split(name, ".") {
-		if !dnsLabel.MatchString(label) {
-			return "", fmt.Errorf("%q is not a DNS name or wildcard; use punycode for international names", value)
-		}
-	}
-	return rule, nil
-}
-
-func netipPrefixOrAddress(value string) string {
-	if ip, err := netip.ParseAddr(value); err == nil && ip.Zone() == "" {
-		return ip.String()
-	}
-	if prefix, err := netip.ParsePrefix(value); err == nil {
-		return prefix.Masked().String()
-	}
-	return ""
-}
-
-func normalizeRules(rules namesPolicy) (namesPolicy, error) {
-	out := namesPolicy{DNS: []string{}, IPs: []string{}}
-	if len(rules.DNS)+len(rules.IPs) > 200 {
-		return out, fmt.Errorf("use at most 200 rules in each list")
-	}
-	for _, value := range rules.DNS {
-		normalized, err := normalizeDNS(value)
-		if err != nil {
-			return out, err
-		}
-		if !slices.Contains(out.DNS, normalized) {
-			out.DNS = append(out.DNS, normalized)
-		}
-	}
-	for _, value := range rules.IPs {
-		normalized := netipPrefixOrAddress(strings.TrimSpace(value))
-		if normalized == "" {
-			return out, fmt.Errorf("%q is not an IP address or CIDR", value)
-		}
-		if !slices.Contains(out.IPs, normalized) {
-			out.IPs = append(out.IPs, normalized)
-		}
-	}
-	return out, nil
-}
-
-func matchesDNSRule(name string, rules []string) bool {
-	for _, rule := range rules {
-		if name == rule {
-			return true
-		}
-		if strings.HasPrefix(rule, "*.") {
-			if prefix, ok := strings.CutSuffix(name, rule[1:]); ok &&
-				prefix != "" && !strings.Contains(prefix, ".") {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func protectDNS(allow, deny namesPolicy, otherAllowed bool, names []string) error {
-	for _, name := range names {
-		if matchesDNSRule(name, deny.DNS) ||
-			(len(allow.DNS) > 0 && !matchesDNSRule(name, allow.DNS)) ||
-			(len(allow.DNS)+len(deny.DNS) == 0 && (otherAllowed || len(allow.IPs) > 0)) {
-			return fmt.Errorf("this policy would block an existing CA name: %s", name)
-		}
-	}
-	return nil
 }
 
 func policyFrom(doc settingsDocument) policyFields {
@@ -130,28 +47,16 @@ func policyFrom(doc settingsDocument) policyFields {
 	}
 }
 
-func applyPolicyUpdate(doc settingsDocument, fields policyFields, protected []string) error {
-	allow, err := normalizeRules(fields.Allow)
-	if err != nil {
-		return err
-	}
-	deny, err := normalizeRules(fields.Deny)
-	if err != nil {
-		return err
-	}
+func applyPolicyUpdate(doc settingsDocument, fields policyFields) {
 	x509 := doc.object("x509")
 	allowed := x509.object("allow")
 	denied := x509.object("deny")
-	otherAllowed := len(allowed.strings("emails"))+len(allowed.strings("uris"))+len(allowed.strings("commonNames")) > 0
-	if err := protectDNS(allow, deny, otherAllowed, protected); err != nil {
-		return err
-	}
 	for _, list := range []struct {
 		doc   settingsDocument
 		names namesPolicy
 	}{
-		{doc: allowed, names: allow},
-		{doc: denied, names: deny},
+		{doc: allowed, names: fields.Allow},
+		{doc: denied, names: fields.Deny},
 	} {
 		delete(list.doc, "dns")
 		delete(list.doc, "ips")
@@ -169,14 +74,12 @@ func applyPolicyUpdate(doc settingsDocument, fields policyFields, protected []st
 		x509["allowWildcardNames"] = true
 	}
 	doc.set("x509", x509)
-	return nil
 }
 
 func (s *Server) policyResponse(doc settingsDocument) policySettings {
-	protected := append([]string{}, s.cfg.PolicyProtectedDNS...)
 	response := policySettings{
 		policyFields: policyFrom(doc), Revision: doc.revision(),
-		Exists: len(doc) > 0, ProtectedDNS: protected,
+		Exists: len(doc) > 0,
 	}
 	if s.cfg.PolicyBackupFile == "" {
 		return response
@@ -256,10 +159,7 @@ func (s *Server) handlePolicySettings(w http.ResponseWriter, r *http.Request) {
 		s.settingsError(w, r, err)
 		return
 	}
-	if err := applyPolicyUpdate(next, update.policyFields, s.cfg.PolicyProtectedDNS); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
+	applyPolicyUpdate(next, update.policyFields)
 	if !exists && len(next) == 0 {
 		writeJSON(w, http.StatusOK, s.policyResponse(next))
 		return

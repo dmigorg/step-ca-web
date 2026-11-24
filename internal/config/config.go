@@ -12,24 +12,23 @@ import (
 )
 
 type Config struct {
-	ListenAddr         string
-	HTTPSListen        string
-	TLSCert            string
-	TLSKey             string
-	CAURL              string
-	TLSSkipVerify      bool
-	SessionSecret      string
-	SessionMaxAge      int
-	InventoryFile      string
-	LoginProvisioner   string
-	AdminCertFile      string
-	AdminKeyFile       string
-	WebOrigin          string
-	CATLSMin           string
-	CATLSDefault       string
-	CATLSMax           string
-	PolicyProtectedDNS []string
-	PolicyBackupFile   string
+	ListenAddr       string
+	HTTPSListen      string
+	TLSCert          string
+	TLSKey           string
+	CAURL            string
+	TLSSkipVerify    bool
+	SessionSecret    string
+	SessionMaxAge    int
+	InventoryFile    string
+	LoginProvisioner string
+	AdminCertFile    string
+	AdminKeyFile     string
+	WebOrigin        string
+	CATLSMin         string
+	CATLSDefault     string
+	CATLSMax         string
+	PolicyBackupFile string
 }
 
 func Parse() (*Config, error) {
@@ -56,16 +55,9 @@ func Parse() (*Config, error) {
 	flag.StringVar(&cfg.CATLSDefault, "ca-tls-default", envOrDefault("STEP_WEB_CA_TLS_DEFAULT", "24h"), "Global default TLS lifetime from the CA configuration")
 	flag.StringVar(&cfg.CATLSMax, "ca-tls-max", envOrDefault("STEP_WEB_CA_TLS_MAX", "24h"), "Global maximum TLS lifetime from the CA configuration")
 
-	protectedDNS := flag.String("policy-protected-dns", os.Getenv("STEP_WEB_POLICY_PROTECTED_DNS"), "Comma-separated existing DNS names that an issuance policy must allow")
 	flag.StringVar(&cfg.PolicyBackupFile, "policy-backup-file", os.Getenv("STEP_WEB_POLICY_BACKUP_FILE"), "Store a copy of the previous issuance policy in this file")
 
 	flag.Parse()
-	for _, name := range strings.Split(*protectedDNS, ",") {
-		name = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(name)), ".")
-		if name != "" {
-			cfg.PolicyProtectedDNS = append(cfg.PolicyProtectedDNS, name)
-		}
-	}
 
 	if cfg.CAURL == "" {
 		return nil, fmt.Errorf("--ca-url is required (or set STEP_CA_URL env var)")
