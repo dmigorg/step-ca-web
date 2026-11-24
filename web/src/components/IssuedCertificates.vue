@@ -1,88 +1,77 @@
 <template>
-  <AppLayout>
-    <template #title>Issued Certificates</template>
-    <div class="inventory-content">
-      <el-card shadow="hover">
-        <template #header>
-          <div class="card-header">
-            <span>Issued Certificates List</span>
-            <el-button
-              :icon="Refresh"
-              circle
-              aria-label="Refresh certificate list"
-              :loading="loading"
-              @click="load"
-            />
+  <div class="inventory-content">
+    <div class="toolbar">
+      <el-input
+        v-model="query"
+        aria-label="Search by domain or serial number"
+        placeholder="Domain or serial number"
+        clearable
+      />
+      <el-checkbox v-model="showHistory">Show history</el-checkbox>
+      <el-checkbox v-model="includeExpired">Show expired</el-checkbox>
+      <el-button
+        :icon="Refresh"
+        circle
+        class="refresh-button"
+        aria-label="Refresh certificate list"
+        :loading="loading"
+        @click="load"
+      />
+    </div>
+
+    <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
+    <el-table
+      v-else
+      v-loading="loading"
+      :data="visibleRows"
+      row-key="serial"
+      :empty-text="loading ? 'Loading…' : 'No certificates found'"
+      stripe
+      style="width: 100%;"
+    >
+      <el-table-column label="Domain / SAN" min-width="205">
+        <template #default="{ row }">
+          <span>{{ row.subject || row.displaySANs || '—' }}</span>
+          <div v-if="row.subject && row.displaySANs && row.displaySANs !== row.subject" class="names">
+            {{ row.displaySANs }}
           </div>
         </template>
+      </el-table-column>
+      <el-table-column label="Serial Number" min-width="170" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span class="serial">{{ row.serial }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="Source" width="100">
+        <template #default="{ row }">
+          <el-tag type="info" size="small">{{ row.source }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="Not Before" min-width="165">
+        <template #default="{ row }">{{ formatDate(row.notBefore) }}</template>
+      </el-table-column>
+      <el-table-column label="Not After" min-width="175">
+        <template #default="{ row }">
+          <div>{{ formatDate(row.notAfter) }}</div>
+          <el-tag v-if="row.revoked" type="danger" size="small">Revoked</el-tag>
+          <el-tag v-else-if="row.endsAt <= now" type="info" size="small">Expired</el-tag>
+        </template>
+      </el-table-column>
+    </el-table>
 
-        <div class="toolbar">
-          <el-input
-            v-model="query"
-            aria-label="Search by domain or serial number"
-            placeholder="Domain or serial number"
-            clearable
-          />
-          <el-checkbox v-model="showHistory">Show history</el-checkbox>
-          <el-checkbox v-model="includeExpired">Show expired</el-checkbox>
-        </div>
-
-        <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
-        <el-table
-          v-else
-          v-loading="loading"
-          :data="visibleRows"
-          row-key="serial"
-          :empty-text="loading ? 'Loading…' : 'No certificates found'"
-          stripe
-          style="width: 100%;"
-        >
-          <el-table-column label="Domain / SAN" min-width="205">
-            <template #default="{ row }">
-              <span>{{ row.subject || row.displaySANs || '—' }}</span>
-              <div v-if="row.subject && row.displaySANs && row.displaySANs !== row.subject" class="names">
-                {{ row.displaySANs }}
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="Serial Number" min-width="170" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="serial">{{ row.serial }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="Source" width="100">
-            <template #default="{ row }">
-              <el-tag type="info" size="small">{{ row.source }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="Not Before" min-width="165">
-            <template #default="{ row }">{{ formatDate(row.notBefore) }}</template>
-          </el-table-column>
-          <el-table-column label="Not After" min-width="175">
-            <template #default="{ row }">
-              <div>{{ formatDate(row.notAfter) }}</div>
-              <el-tag v-if="row.revoked" type="danger" size="small">Revoked</el-tag>
-              <el-tag v-else-if="row.endsAt <= now" type="info" size="small">Expired</el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
-
-        <el-pagination
-          v-if="filtered.length > pageSize"
-          v-model:current-page="page"
-          :page-size="pageSize"
-          :total="filtered.length"
-          layout="prev, pager, next"
-        />
-      </el-card>
-    </div>
-  </AppLayout>
+    <el-pagination
+      v-if="filtered.length > pageSize"
+      v-model:current-page="page"
+      :page-size="pageSize"
+      :total="filtered.length"
+      layout="prev, pager, next"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
-import AppLayout from '@/components/AppLayout.vue'
 import { caApi } from '@/api/client'
 import type { IssuedCertificate } from '@/types'
 
@@ -199,13 +188,6 @@ onMounted(load)
 <style scoped>
 .inventory-content {
   min-width: 0;
-  padding: 20px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 
 .toolbar {
@@ -224,6 +206,10 @@ onMounted(load)
   margin-right: 0;
 }
 
+.refresh-button {
+  margin-left: auto;
+}
+
 .serial {
   font-family: monospace;
   font-size: 12px;
@@ -236,11 +222,5 @@ onMounted(load)
 
 .el-pagination {
   margin-top: 16px;
-}
-
-@media (max-width: 720px) {
-  .inventory-content {
-    padding: 0;
-  }
 }
 </style>

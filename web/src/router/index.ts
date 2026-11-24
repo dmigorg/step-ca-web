@@ -39,12 +39,6 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/certificates/issued',
-      name: 'issued-certificates',
-      component: () => import('@/views/IssuedCertificatesView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
       path: '/roots',
       name: 'roots',
       component: () => import('@/views/RootsView.vue'),

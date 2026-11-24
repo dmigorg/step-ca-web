@@ -27,11 +27,6 @@
           <template #title>Certificates</template>
         </el-menu-item>
 
-        <el-menu-item index="/certificates/issued">
-          <el-icon><List /></el-icon>
-          <template #title>Issued Certificates</template>
-        </el-menu-item>
-
         <el-menu-item index="/issuance-policy">
           <el-icon><SetUp /></el-icon>
           <template #title>Issuance Policy</template>
@@ -85,7 +80,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { Expand, Fold, List, SetUp } from '@element-plus/icons-vue'
+import { Expand, Fold, SetUp } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
