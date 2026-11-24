@@ -20,23 +20,19 @@
             <div>
               <h3>Allow</h3>
               <el-form-item label="DNS Names">
-                <PolicyRuleInput v-model="draft.allow.dns" v-model:candidate="candidates.allowDNS"
-                  placeholder="e.g. *.example.local" />
+                <el-input v-model="draft.allow.dns" placeholder="e.g. *.example.local" />
               </el-form-item>
               <el-form-item label="IP Addresses or CIDRs">
-                <PolicyRuleInput v-model="draft.allow.ips" v-model:candidate="candidates.allowIPs"
-                  placeholder="e.g. 10.20.8.0/22" />
+                <el-input v-model="draft.allow.ips" placeholder="e.g. 10.20.8.0/22" />
               </el-form-item>
             </div>
             <div>
               <h3>Deny</h3>
               <el-form-item label="DNS Names">
-                <PolicyRuleInput v-model="draft.deny.dns" v-model:candidate="candidates.denyDNS"
-                  placeholder="e.g. blocked.example.local" />
+                <el-input v-model="draft.deny.dns" placeholder="e.g. blocked.example.local" />
               </el-form-item>
               <el-form-item label="IP Addresses or CIDRs">
-                <PolicyRuleInput v-model="draft.deny.ips" v-model:candidate="candidates.denyIPs"
-                  placeholder="e.g. 10.20.8.15" />
+                <el-input v-model="draft.deny.ips" placeholder="e.g. 10.20.8.15" />
               </el-form-item>
             </div>
           </div>
@@ -61,32 +57,32 @@ import { computed, onMounted, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import AppLayout from '@/components/AppLayout.vue'
-import PolicyRuleInput from '@/components/PolicyRuleInput.vue'
-import { mergePolicyRules } from '@/components/policyRules'
 import { caApi, getErrorMessage } from '@/api/client'
 import type { IssuancePolicy, IssuancePolicySettings } from '@/types'
 
 const current = ref<IssuancePolicySettings>()
-const draft = ref<IssuancePolicy>({
-  allow: { dns: [], ips: [] },
-  deny: { dns: [], ips: [] },
+const draft = ref({
+  allow: { dns: '', ips: '' },
+  deny: { dns: '', ips: '' },
   allowWildcardNames: false
 })
-const emptyCandidates = () => ({ allowDNS: '', allowIPs: '', denyDNS: '', denyIPs: '' })
-const candidates = ref(emptyCandidates())
 const loading = ref(false)
 const saving = ref(false)
 const loadError = ref('')
 const saveError = ref('')
 
+function parseRules(input: string): string[] {
+  return [...new Set(input.split(',').map(value => value.trim()).filter(Boolean))]
+}
+
 const policyToSave = computed<IssuancePolicy>(() => ({
   allow: {
-    dns: mergePolicyRules(draft.value.allow.dns, candidates.value.allowDNS),
-    ips: mergePolicyRules(draft.value.allow.ips, candidates.value.allowIPs)
+    dns: parseRules(draft.value.allow.dns),
+    ips: parseRules(draft.value.allow.ips)
   },
   deny: {
-    dns: mergePolicyRules(draft.value.deny.dns, candidates.value.denyDNS),
-    ips: mergePolicyRules(draft.value.deny.ips, candidates.value.denyIPs)
+    dns: parseRules(draft.value.deny.dns),
+    ips: parseRules(draft.value.deny.ips)
   },
   allowWildcardNames: draft.value.allowWildcardNames
 }))
@@ -95,8 +91,10 @@ const hasChanges = computed(() => {
   const saved = current.value
   if (!saved) return false
   const edits = policyToSave.value
-  const differs = (before: string[], after: string[]) =>
-    before.length !== after.length || before.some(rule => !after.includes(rule))
+  const differs = (before: string[], after: string[]) => {
+    const savedRules = new Set(before)
+    return savedRules.size !== after.length || after.some(rule => !savedRules.has(rule))
+  }
 
   return differs(saved.allow.dns, edits.allow.dns) ||
     differs(saved.allow.ips, edits.allow.ips) ||
@@ -107,10 +105,9 @@ const hasChanges = computed(() => {
 
 function setDraft(policy: IssuancePolicy) {
   saveError.value = ''
-  candidates.value = emptyCandidates()
   draft.value = {
-    allow: { dns: [...policy.allow.dns], ips: [...policy.allow.ips] },
-    deny: { dns: [...policy.deny.dns], ips: [...policy.deny.ips] },
+    allow: { dns: policy.allow.dns.join(', '), ips: policy.allow.ips.join(', ') },
+    deny: { dns: policy.deny.dns.join(', '), ips: policy.deny.ips.join(', ') },
     allowWildcardNames: policy.allowWildcardNames
   }
 }
