@@ -27,6 +27,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/provisioners/acme',
+      name: 'acme-settings',
+      component: () => import('@/views/ACMESettingsView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/certificates',
       name: 'certificates',
       component: () => import('@/views/CertificatesView.vue'),

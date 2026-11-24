@@ -152,3 +152,32 @@ export interface IssuedCertificate {
 export interface CertificateInventory {
   certificates: IssuedCertificate[]
 }
+
+export interface SettingsChange {
+  label: string
+  before: string
+  after: string
+}
+
+export interface CertificateLifetimes {
+  min: string
+  default: string
+  max: string
+}
+
+export interface ACMEProvisionerSettings {
+  revision: string
+  durations: CertificateLifetimes
+  defaults: CertificateLifetimes
+  useDefaultChallenges: boolean
+  challenges: string[]
+  additionalChallenges: string[]
+}
+
+export interface ACMEProvisionerUpdate {
+  revision: string
+  durations: CertificateLifetimes
+  useDefaultChallenges: boolean
+  challenges: string[]
+  confirmation: string
+}

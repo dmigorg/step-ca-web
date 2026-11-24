@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/xix-support/step-ca-web/internal/auth"
 	"github.com/xix-support/step-ca-web/internal/ca"
@@ -12,6 +13,7 @@ import (
 type Server struct {
 	caClient    *ca.Client
 	adminClient *ca.AdminClient
+	settingsMu  sync.Mutex
 	sessMgr     *session.Manager
 	cfg         *config.Config
 	authMW      func(http.Handler) http.Handler
@@ -44,6 +46,8 @@ func (s *Server) SetupRoutes() http.Handler {
 	mux.Handle("GET /api/roots", s.authMW(http.HandlerFunc(s.handleRoots)))
 	mux.Handle("GET /api/intermediates", s.authMW(http.HandlerFunc(s.handleIntermediates)))
 	mux.Handle("GET /api/provisioners", s.authMW(http.HandlerFunc(s.handleProvisioners)))
+	mux.Handle("GET /api/settings/acme", s.authMW(http.HandlerFunc(s.handleACMESettings)))
+	mux.Handle("PUT /api/settings/acme", s.authMW(http.HandlerFunc(s.handleACMESettings)))
 
 	mux.Handle("POST /api/sign", s.authMW(http.HandlerFunc(s.handleSign)))
 	mux.Handle("POST /api/revoke", s.authMW(http.HandlerFunc(s.handleRevoke)))

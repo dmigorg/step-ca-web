@@ -18,7 +18,9 @@ import type {
   ApiError,
   CNFParsedResult,
   SignCNFRequest,
-  CertificateInventory
+  CertificateInventory,
+  ACMEProvisionerSettings,
+  ACMEProvisionerUpdate
 } from '@/types'
 
 const api = axios.create({
@@ -54,6 +56,14 @@ export const authApi = {
 }
 
 export const caApi = {
+  async acmeSettings(): Promise<ACMEProvisionerSettings> {
+    return (await api.get<ACMEProvisionerSettings>('/api/settings/acme')).data
+  },
+
+  async updateACMESettings(update: ACMEProvisionerUpdate): Promise<ACMEProvisionerSettings> {
+    return (await api.put<ACMEProvisionerSettings>('/api/settings/acme', update)).data
+  },
+
   async issuedCertificates(): Promise<CertificateInventory> {
     const response = await api.get<CertificateInventory>('/api/certificates/issued')
     return response.data

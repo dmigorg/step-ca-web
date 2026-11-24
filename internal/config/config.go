@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -25,6 +26,9 @@ type Config struct {
 	AdminKeyFile          string
 	AdminConfirmationHash []byte
 	WebOrigin             string
+	CATLSMin              string
+	CATLSDefault          string
+	CATLSMax              string
 }
 
 func Parse() (*Config, error) {
@@ -47,6 +51,10 @@ func Parse() (*Config, error) {
 	flag.StringVar(&cfg.AdminKeyFile, "admin-key", os.Getenv("STEP_WEB_ADMIN_KEY"), "Admin API client private key")
 	flag.StringVar(&cfg.WebOrigin, "web-origin", os.Getenv("STEP_WEB_ORIGIN"), "HTTPS origin allowed to submit settings changes")
 	confirmationFile := flag.String("admin-confirmation-hash-file", os.Getenv("STEP_WEB_ADMIN_CONFIRMATION_HASH_FILE"), "File containing the SHA-256 hash of the random settings confirmation code")
+
+	flag.StringVar(&cfg.CATLSMin, "ca-tls-min", envOrDefault("STEP_WEB_CA_TLS_MIN", "5m"), "Global minimum TLS lifetime from the CA configuration")
+	flag.StringVar(&cfg.CATLSDefault, "ca-tls-default", envOrDefault("STEP_WEB_CA_TLS_DEFAULT", "24h"), "Global default TLS lifetime from the CA configuration")
+	flag.StringVar(&cfg.CATLSMax, "ca-tls-max", envOrDefault("STEP_WEB_CA_TLS_MAX", "24h"), "Global maximum TLS lifetime from the CA configuration")
 
 	flag.Parse()
 
@@ -88,6 +96,12 @@ func Parse() (*Config, error) {
 	if cfg.AdminCertFile != "" || cfg.AdminKeyFile != "" || *confirmationFile != "" || cfg.WebOrigin != "" {
 		if cfg.AdminCertFile == "" || cfg.AdminKeyFile == "" || *confirmationFile == "" || cfg.LoginProvisioner == "" {
 			return nil, fmt.Errorf("admin settings require a certificate, key, confirmation hash file, and a sign-in provisioner")
+		}
+		for _, value := range []string{cfg.CATLSMin, cfg.CATLSDefault, cfg.CATLSMax} {
+			duration, err := time.ParseDuration(value)
+			if err != nil || duration <= 0 {
+				return nil, fmt.Errorf("CA TLS defaults must be positive durations")
+			}
 		}
 		if err := validateAdminURL(cfg.CAURL); err != nil {
 			return nil, fmt.Errorf("invalid admin CA URL: %w", err)

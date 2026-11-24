@@ -44,6 +44,13 @@
               </el-tag>
             </template>
           </el-table-column>
+          <el-table-column label="Actions" width="100">
+            <template #default="{ row }">
+              <el-button v-if="row.name === 'acme' && row.type === 'ACME'" link type="primary" @click="openACME">
+                Edit
+              </el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </el-card>
     </div>
@@ -51,12 +58,18 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import { onMounted } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { useCaStore } from '@/stores/ca'
 import AppLayout from '@/components/AppLayout.vue'
 
 const caStore = useCaStore()
+const router = useRouter()
+
+function openACME() {
+  router.push({ name: 'acme-settings' })
+}
 
 onMounted(() => {
   if (!caStore.provisioners) {
