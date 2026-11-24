@@ -3,11 +3,14 @@ package server
 import (
 	"errors"
 	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/xix-support/step-ca-web/internal/ca"
 )
 
 const policyAdminPath = "/admin/policy"
+const defaultAllowedDNSName = "step"
 
 type namesPolicy struct {
 	DNS []string `json:"dns"`
@@ -31,18 +34,29 @@ type policyUpdate struct {
 	Revision string `json:"revision"`
 }
 
+func isDefaultAllowedDNS(name string) bool {
+	return strings.EqualFold(name, defaultAllowedDNSName)
+}
+
 func policyFrom(doc settingsDocument) policyFields {
 	x509 := doc.object("x509")
 	allow, deny := x509.object("allow"), x509.object("deny")
 	wildcard, _ := x509["allowWildcardNames"].(bool)
 	return policyFields{
-		Allow:              namesPolicy{DNS: allow.strings("dns"), IPs: allow.strings("ips")},
+		Allow: namesPolicy{
+			DNS: slices.DeleteFunc(allow.strings("dns"), isDefaultAllowedDNS),
+			IPs: allow.strings("ips"),
+		},
 		Deny:               namesPolicy{DNS: deny.strings("dns"), IPs: deny.strings("ips")},
 		AllowWildcardNames: wildcard,
 	}
 }
 
 func applyPolicyUpdate(doc settingsDocument, fields policyFields) {
+	if len(fields.Allow.DNS) > 0 && !slices.ContainsFunc(fields.Allow.DNS, isDefaultAllowedDNS) {
+		fields.Allow.DNS = append(slices.Clone(fields.Allow.DNS), defaultAllowedDNSName)
+	}
+
 	x509 := doc.object("x509")
 	allowed := x509.object("allow")
 	denied := x509.object("deny")

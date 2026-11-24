@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -49,6 +50,49 @@ func TestApplyPolicyUpdateLeavesRuleValidationToCA(t *testing.T) {
 	}
 	if got := x509.object("allow").strings("emails"); strings.Join(got, ",") != "@example.local" {
 		t.Errorf("existing allowed emails = %v, want @example.local", got)
+	}
+}
+
+func TestApplyPolicyUpdateKeepsSuperAdminInDNSAllowlist(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		dns  []string
+		want []string
+	}{
+		{name: "custom names", dns: []string{"*.example.local"}, want: []string{"*.example.local", "step"}},
+		{name: "already present", dns: []string{"*.example.local", "STEP"}, want: []string{"*.example.local", "STEP"}},
+		{name: "no DNS allowlist"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := settingsDocument{}
+			applyPolicyUpdate(doc, policyFields{Allow: namesPolicy{DNS: tc.dns}})
+			got, _ := doc.object("x509").object("allow")["dns"].([]string)
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("DNS sent to step-ca = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestPolicyResponseHidesDefaultAllowedDNS(t *testing.T) {
+	t.Parallel()
+
+	doc := settingsDocument{"x509": map[string]any{
+		"allow": map[string]any{"dns": []any{"*.example.local", "step"}},
+		"deny":  map[string]any{"dns": []any{"step"}},
+	}}
+	revision := doc.revision()
+	response := policyResponse(doc, true)
+	if !slices.Equal(response.Allow.DNS, []string{"*.example.local"}) {
+		t.Errorf("visible allow DNS = %v, want [*.example.local]", response.Allow.DNS)
+	}
+	if !slices.Equal(response.Deny.DNS, []string{"step"}) {
+		t.Errorf("visible deny DNS = %v, want [step]", response.Deny.DNS)
+	}
+	if response.Revision != revision || doc.revision() != revision {
+		t.Error("filtering out the default changed the underlying policy revision")
 	}
 }
 
