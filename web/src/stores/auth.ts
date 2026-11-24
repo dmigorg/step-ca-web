@@ -8,6 +8,11 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoading = ref(false)
   const error = ref('')
 
+  function clearSession() {
+    isAuthenticated.value = false
+    provisionerName.value = ''
+  }
+
   async function login(password: string) {
     isLoading.value = true
     error.value = ''
@@ -27,8 +32,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       await authApi.logout()
     } finally {
-      isAuthenticated.value = false
-      provisionerName.value = ''
+      clearSession()
     }
   }
 
@@ -38,8 +42,7 @@ export const useAuthStore = defineStore('auth', () => {
       isAuthenticated.value = response.authenticated
       provisionerName.value = response.provisioner || ''
     } catch {
-      isAuthenticated.value = false
-      provisionerName.value = ''
+      clearSession()
     }
   }
 
@@ -48,6 +51,7 @@ export const useAuthStore = defineStore('auth', () => {
     provisionerName,
     isLoading,
     error,
+    clearSession,
     login,
     logout,
     checkAuth

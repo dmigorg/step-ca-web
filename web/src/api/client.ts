@@ -1,5 +1,6 @@
 import axios, { type AxiosError } from 'axios'
 import router from '@/router'
+import { useAuthStore } from '@/stores/auth'
 import type {
   HealthResponse,
   VersionResponse,
@@ -33,8 +34,13 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiError>) => {
-    if (error.response?.status === 401) {
-      router.push('/login')
+    if (error.response?.status === 401 && error.config?.url !== '/auth/login') {
+      const auth = useAuthStore()
+      const wasAuthenticated = auth.isAuthenticated
+      auth.clearSession()
+      if (wasAuthenticated && router.currentRoute.value.meta.requiresAuth) {
+        void router.replace({ name: 'login' })
+      }
     }
     return Promise.reject(error)
   }
