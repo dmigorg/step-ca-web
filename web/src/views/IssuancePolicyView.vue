@@ -15,24 +15,28 @@
         <el-form v-else-if="current" label-position="top" class="settings-form" :disabled="saving"
           @submit.prevent="save">
           <p class="hint">These rules apply to all X.509 issuance from this CA, including ACME.
-            Separate multiple values with commas.</p>
+            Separate values with commas or press Enter.</p>
           <div class="rule-columns">
             <div>
               <h3>Allow</h3>
               <el-form-item label="DNS Names">
-                <el-input v-model="draft.allow.dns" placeholder="e.g. *.example.local" />
+                <el-input-tag v-model="draft.allow.dns" delimiter="," tag-type="primary"
+                  placeholder="e.g. *.example.local" />
               </el-form-item>
               <el-form-item label="IP Addresses or CIDRs">
-                <el-input v-model="draft.allow.ips" placeholder="e.g. 10.20.8.0/22" />
+                <el-input-tag v-model="draft.allow.ips" delimiter="," tag-type="primary"
+                  placeholder="e.g. 10.20.8.0/22" />
               </el-form-item>
             </div>
             <div>
               <h3>Deny</h3>
               <el-form-item label="DNS Names">
-                <el-input v-model="draft.deny.dns" placeholder="e.g. blocked.example.local" />
+                <el-input-tag v-model="draft.deny.dns" delimiter="," tag-type="primary"
+                  placeholder="e.g. blocked.example.local" />
               </el-form-item>
               <el-form-item label="IP Addresses or CIDRs">
-                <el-input v-model="draft.deny.ips" placeholder="e.g. 10.20.8.15" />
+                <el-input-tag v-model="draft.deny.ips" delimiter="," tag-type="primary"
+                  placeholder="e.g. 10.20.8.15" />
               </el-form-item>
             </div>
           </div>
@@ -42,7 +46,7 @@
           <p class="hint">A DNS rule such as *.example.local matches one level of subdomains.
             Add example.local separately to match the domain itself.</p>
           <el-alert v-if="saveError" :title="saveError" type="error" :closable="false" show-icon class="save-error" />
-          <el-button type="primary" native-type="submit" :disabled="!hasChanges" :loading="saving">
+          <el-button type="primary" native-type="submit" :loading="saving">
             Save Changes
           </el-button>
           <el-button @click="setDraft(current)">Reset</el-button>
@@ -61,9 +65,9 @@ import { caApi, getErrorMessage } from '@/api/client'
 import type { IssuancePolicy, IssuancePolicySettings } from '@/types'
 
 const current = ref<IssuancePolicySettings>()
-const draft = ref({
-  allow: { dns: '', ips: '' },
-  deny: { dns: '', ips: '' },
+const draft = ref<IssuancePolicy>({
+  allow: { dns: [], ips: [] },
+  deny: { dns: [], ips: [] },
   allowWildcardNames: false
 })
 const loading = ref(false)
@@ -71,18 +75,14 @@ const saving = ref(false)
 const loadError = ref('')
 const saveError = ref('')
 
-function parseRules(input: string): string[] {
-  return [...new Set(input.split(',').map(value => value.trim()).filter(Boolean))]
-}
-
 const policyToSave = computed<IssuancePolicy>(() => ({
   allow: {
-    dns: parseRules(draft.value.allow.dns),
-    ips: parseRules(draft.value.allow.ips)
+    dns: [...new Set(draft.value.allow.dns)],
+    ips: [...new Set(draft.value.allow.ips)]
   },
   deny: {
-    dns: parseRules(draft.value.deny.dns),
-    ips: parseRules(draft.value.deny.ips)
+    dns: [...new Set(draft.value.deny.dns)],
+    ips: [...new Set(draft.value.deny.ips)]
   },
   allowWildcardNames: draft.value.allowWildcardNames
 }))
@@ -106,8 +106,8 @@ const hasChanges = computed(() => {
 function setDraft(policy: IssuancePolicy) {
   saveError.value = ''
   draft.value = {
-    allow: { dns: policy.allow.dns.join(', '), ips: policy.allow.ips.join(', ') },
-    deny: { dns: policy.deny.dns.join(', '), ips: policy.deny.ips.join(', ') },
+    allow: { dns: [...policy.allow.dns], ips: [...policy.allow.ips] },
+    deny: { dns: [...policy.deny.dns], ips: [...policy.deny.ips] },
     allowWildcardNames: policy.allowWildcardNames
   }
 }
@@ -126,8 +126,14 @@ async function load() {
   }
 }
 
-async function save() {
-  if (!current.value || saving.value || !hasChanges.value) return
+async function save(event: SubmitEvent) {
+  if (!current.value || saving.value) return
+  const input = document.activeElement
+  if (input instanceof HTMLInputElement && input.type === 'text' &&
+    event.currentTarget instanceof HTMLFormElement && event.currentTarget.contains(input)) {
+    input.blur()
+  }
+  if (!hasChanges.value) return
   saving.value = true
   saveError.value = ''
   try {
