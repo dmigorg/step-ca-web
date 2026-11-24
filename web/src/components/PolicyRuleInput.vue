@@ -23,15 +23,14 @@
 </template>
 
 <script setup lang="ts">
+import { mergePolicyRules } from './policyRules'
+
 const props = defineProps<{ modelValue: string[]; placeholder: string }>()
 const emit = defineEmits<{ 'update:modelValue': [rules: string[]] }>()
 const candidate = defineModel<string>('candidate', { required: true })
 
 function add() {
-  const value = candidate.value.trim()
-  if (value && !props.modelValue.includes(value)) {
-    emit('update:modelValue', [...props.modelValue, value])
-  }
+  emit('update:modelValue', mergePolicyRules(props.modelValue, candidate.value))
   candidate.value = ''
 }
 </script>

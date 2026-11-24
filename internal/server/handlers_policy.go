@@ -1,13 +1,8 @@
 package server
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
-	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"github.com/xix-support/step-ca-web/internal/ca"
 )
@@ -27,9 +22,8 @@ type policyFields struct {
 
 type policySettings struct {
 	policyFields
-	Revision string        `json:"revision"`
-	Exists   bool          `json:"exists"`
-	Previous *policyFields `json:"previous,omitempty"`
+	Revision string `json:"revision"`
+	Exists   bool   `json:"exists"`
 }
 
 type policyUpdate struct {
@@ -77,40 +71,12 @@ func applyPolicyUpdate(doc settingsDocument, fields policyFields) {
 	doc.set("x509", x509)
 }
 
-func (s *Server) policyResponse(doc settingsDocument) policySettings {
-	response := policySettings{
-		policyFields: policyFrom(doc), Revision: doc.revision(),
-		Exists: len(doc) > 0,
+func policyResponse(doc settingsDocument, exists bool) policySettings {
+	return policySettings{
+		policyFields: policyFrom(doc),
+		Revision:     doc.revision(),
+		Exists:       exists,
 	}
-	if s.cfg.PolicyBackupFile == "" {
-		return response
-	}
-	raw, err := os.ReadFile(s.cfg.PolicyBackupFile)
-	if err == nil {
-		var previous settingsDocument
-		if json.Unmarshal(raw, &previous) == nil {
-			fields := policyFrom(previous)
-			response.Previous = &fields
-		}
-	}
-	return response
-}
-
-func (s *Server) stagePolicyBackup(current settingsDocument) (string, error) {
-	if s.cfg.PolicyBackupFile == "" {
-		return "", nil
-	}
-	f, err := os.CreateTemp(filepath.Dir(s.cfg.PolicyBackupFile), ".previous-policy-*")
-	if err != nil {
-		return "", err
-	}
-	writeErr := json.NewEncoder(f).Encode(current)
-	closeErr := f.Close()
-	if err := errors.Join(writeErr, closeErr); err != nil {
-		os.Remove(f.Name())
-		return "", err
-	}
-	return f.Name(), nil
 }
 
 func (s *Server) handlePolicySettings(w http.ResponseWriter, r *http.Request) {
@@ -136,9 +102,7 @@ func (s *Server) handlePolicySettings(w http.ResponseWriter, r *http.Request) {
 	}
 	exists := err == nil
 	if r.Method == http.MethodGet {
-		result := s.policyResponse(current)
-		result.Exists = exists
-		writeJSON(w, http.StatusOK, result)
+		writeJSON(w, http.StatusOK, policyResponse(current, exists))
 		return
 	}
 	if update.Revision != current.revision() {
@@ -146,52 +110,28 @@ func (s *Server) handlePolicySettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Applying changes edits nested objects in place. Serialize the previously
-	// saved version before working on a separate copy.
-	original, err := json.Marshal(current)
-	if err != nil {
-		s.settingsError(w, r, err)
+	applyPolicyUpdate(current, update.policyFields)
+	hasPolicy := len(current) > 0
+	if !exists && !hasPolicy {
+		writeJSON(w, http.StatusOK, policyResponse(current, false))
 		return
-	}
-	next := settingsDocument{}
-	if err := json.Unmarshal(original, &next); err != nil {
-		s.settingsError(w, r, err)
-		return
-	}
-	applyPolicyUpdate(next, update.policyFields)
-	if !exists && len(next) == 0 {
-		writeJSON(w, http.StatusOK, s.policyResponse(next))
-		return
-	}
-	backup, err := s.stagePolicyBackup(current)
-	if err != nil {
-		s.settingsError(w, r, fmt.Errorf("prepare previous issuance policy: %w", err))
-		return
-	}
-	if backup != "" {
-		defer os.Remove(backup)
 	}
 
 	var saved settingsDocument
 	switch {
-	case len(next) == 0:
+	case !hasPolicy:
 		err = s.adminClient.Request(r.Context(), http.MethodDelete, policyAdminPath, nil, nil)
 		saved = settingsDocument{}
 	case exists:
-		err = s.adminClient.Request(r.Context(), http.MethodPut, policyAdminPath, next, &saved)
+		err = s.adminClient.Request(r.Context(), http.MethodPut, policyAdminPath, current, &saved)
 	default:
-		err = s.adminClient.Request(r.Context(), http.MethodPost, policyAdminPath, next, &saved)
+		err = s.adminClient.Request(r.Context(), http.MethodPost, policyAdminPath, current, &saved)
 	}
 	if err != nil {
 		s.settingsError(w, r, err)
 		return
 	}
-	if backup != "" {
-		if err := os.Rename(backup, s.cfg.PolicyBackupFile); err != nil {
-			slog.ErrorContext(r.Context(), "publish previous issuance policy", "err", err)
-		}
-	}
-	result := s.policyResponse(saved)
+	result := policyResponse(saved, hasPolicy)
 	s.auditSettings(r, "authority issuance policy", result.Revision)
 	writeJSON(w, http.StatusOK, result)
 }

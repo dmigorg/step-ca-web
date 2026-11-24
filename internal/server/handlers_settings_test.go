@@ -3,8 +3,6 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -96,23 +94,5 @@ func TestSettingsWriteAccessUsesCurrentSession(t *testing.T) {
 				}
 			})
 		}
-	}
-}
-
-func TestPreparingPolicyBackupDoesNotReplacePreviousPolicy(t *testing.T) {
-	t.Parallel()
-	path := filepath.Join(t.TempDir(), "previous.json")
-	const saved = `{"x509":{"allow":{"dns":["old.example.local"]}}}`
-	if err := os.WriteFile(path, []byte(saved), 0600); err != nil {
-		t.Fatal(err)
-	}
-	server := Server{cfg: &config.Config{PolicyBackupFile: path}}
-	staged, err := server.stagePolicyBackup(settingsDocument{"x509": map[string]any{"deny": map[string]any{"dns": []string{"candidate.example.local"}}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.Remove(staged) })
-	if got, err := os.ReadFile(path); err != nil || string(got) != saved {
-		t.Fatalf("previous policy after staging = %q, %v, want %s", got, err, saved)
 	}
 }

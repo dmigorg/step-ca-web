@@ -28,7 +28,6 @@ type Config struct {
 	CATLSMin         string
 	CATLSDefault     string
 	CATLSMax         string
-	PolicyBackupFile string
 }
 
 func Parse() (*Config, error) {
@@ -54,8 +53,6 @@ func Parse() (*Config, error) {
 	flag.StringVar(&cfg.CATLSMin, "ca-tls-min", envOrDefault("STEP_WEB_CA_TLS_MIN", "5m"), "Global minimum TLS lifetime from the CA configuration")
 	flag.StringVar(&cfg.CATLSDefault, "ca-tls-default", envOrDefault("STEP_WEB_CA_TLS_DEFAULT", "24h"), "Global default TLS lifetime from the CA configuration")
 	flag.StringVar(&cfg.CATLSMax, "ca-tls-max", envOrDefault("STEP_WEB_CA_TLS_MAX", "24h"), "Global maximum TLS lifetime from the CA configuration")
-
-	flag.StringVar(&cfg.PolicyBackupFile, "policy-backup-file", os.Getenv("STEP_WEB_POLICY_BACKUP_FILE"), "Store a copy of the previous issuance policy in this file")
 
 	flag.Parse()
 

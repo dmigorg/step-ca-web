@@ -14,7 +14,8 @@
         <el-alert v-if="loadError" :title="loadError" type="error" :closable="false" show-icon />
         <el-form v-else-if="current" label-position="top" class="settings-form" :disabled="saving"
           @submit.prevent="save">
-          <p class="hint">These rules apply to all X.509 issuance from this CA, including ACME.</p>
+          <p class="hint">These rules apply to all X.509 issuance from this CA, including ACME.
+            Separate multiple values with commas.</p>
           <div class="rule-columns">
             <div>
               <h3>Allow</h3>
@@ -49,7 +50,6 @@
             Save Changes
           </el-button>
           <el-button @click="setDraft(current)">Reset</el-button>
-          <el-button v-if="current.previous" @click="setDraft(current.previous)">Load Previous Policy</el-button>
         </el-form>
       </el-card>
     </div>
@@ -62,6 +62,7 @@ import { Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import AppLayout from '@/components/AppLayout.vue'
 import PolicyRuleInput from '@/components/PolicyRuleInput.vue'
+import { mergePolicyRules } from '@/components/policyRules'
 import { caApi, getErrorMessage } from '@/api/client'
 import type { IssuancePolicy, IssuancePolicySettings } from '@/types'
 
@@ -78,19 +79,14 @@ const saving = ref(false)
 const loadError = ref('')
 const saveError = ref('')
 
-function includeCandidate(rules: string[], candidate: string): string[] {
-  const rule = candidate.trim()
-  return rule && !rules.includes(rule) ? [...rules, rule] : rules
-}
-
 const policyToSave = computed<IssuancePolicy>(() => ({
   allow: {
-    dns: includeCandidate(draft.value.allow.dns, candidates.value.allowDNS),
-    ips: includeCandidate(draft.value.allow.ips, candidates.value.allowIPs)
+    dns: mergePolicyRules(draft.value.allow.dns, candidates.value.allowDNS),
+    ips: mergePolicyRules(draft.value.allow.ips, candidates.value.allowIPs)
   },
   deny: {
-    dns: includeCandidate(draft.value.deny.dns, candidates.value.denyDNS),
-    ips: includeCandidate(draft.value.deny.ips, candidates.value.denyIPs)
+    dns: mergePolicyRules(draft.value.deny.dns, candidates.value.denyDNS),
+    ips: mergePolicyRules(draft.value.deny.ips, candidates.value.denyIPs)
   },
   allowWildcardNames: draft.value.allowWildcardNames
 }))
