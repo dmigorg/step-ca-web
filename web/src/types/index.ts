@@ -179,7 +179,6 @@ export interface ACMEProvisionerUpdate {
   durations: CertificateLifetimes
   useDefaultChallenges: boolean
   challenges: string[]
-  confirmation: string
 }
 
 export interface PolicyNames {
@@ -202,5 +201,4 @@ export interface IssuancePolicySettings extends IssuancePolicy {
 
 export interface IssuancePolicyUpdate extends IssuancePolicy {
   revision: string
-  confirmation: string
 }

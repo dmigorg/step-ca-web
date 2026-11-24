@@ -137,15 +137,14 @@ function review() {
   reviewing.value = true
 }
 
-async function save(confirmation: string) {
+async function save() {
   if (!current.value) return
   saving.value = true
   saveError.value = ''
   try {
     current.value = await caApi.updateIssuancePolicy({
       ...draft.value,
-      revision: current.value.revision,
-      confirmation
+      revision: current.value.revision
     })
     setDraft(current.value)
     reviewing.value = false

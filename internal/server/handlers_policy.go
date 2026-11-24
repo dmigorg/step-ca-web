@@ -38,8 +38,7 @@ type policySettings struct {
 
 type policyUpdate struct {
 	policyFields
-	Revision     string `json:"revision"`
-	Confirmation string `json:"confirmation"`
+	Revision string `json:"revision"`
 }
 
 var dnsLabel = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
@@ -219,7 +218,7 @@ func (s *Server) handlePolicySettings(w http.ResponseWriter, r *http.Request) {
 
 	var update policyUpdate
 	if r.Method == http.MethodPut {
-		if !s.readSettingsUpdate(w, r, &update) || !s.authorizeSettingsWrite(w, update.Confirmation) {
+		if !s.authorizeSettingsWrite(w, r) || !s.readSettingsUpdate(w, r, &update) {
 			return
 		}
 		s.settingsMu.Lock()

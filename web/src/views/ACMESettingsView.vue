@@ -147,7 +147,7 @@ function review() {
   reviewing.value = true
 }
 
-async function save(confirmation: string) {
+async function save() {
   if (!current.value) return
   saving.value = true
   saveError.value = ''
@@ -160,8 +160,7 @@ async function save(confirmation: string) {
         max: durations.value.max.trim()
       },
       useDefaultChallenges: useDefaultChallenges.value,
-      challenges: challenges.value,
-      confirmation
+      challenges: challenges.value
     })
     reset()
     reviewing.value = false

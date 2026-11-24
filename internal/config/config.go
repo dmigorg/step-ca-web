@@ -12,25 +12,24 @@ import (
 )
 
 type Config struct {
-	ListenAddr            string
-	HTTPSListen           string
-	TLSCert               string
-	TLSKey                string
-	CAURL                 string
-	TLSSkipVerify         bool
-	SessionSecret         string
-	SessionMaxAge         int
-	InventoryFile         string
-	LoginProvisioner      string
-	AdminCertFile         string
-	AdminKeyFile          string
-	AdminConfirmationHash []byte
-	WebOrigin             string
-	CATLSMin              string
-	CATLSDefault          string
-	CATLSMax              string
-	PolicyProtectedDNS    []string
-	PolicyBackupFile      string
+	ListenAddr         string
+	HTTPSListen        string
+	TLSCert            string
+	TLSKey             string
+	CAURL              string
+	TLSSkipVerify      bool
+	SessionSecret      string
+	SessionMaxAge      int
+	InventoryFile      string
+	LoginProvisioner   string
+	AdminCertFile      string
+	AdminKeyFile       string
+	WebOrigin          string
+	CATLSMin           string
+	CATLSDefault       string
+	CATLSMax           string
+	PolicyProtectedDNS []string
+	PolicyBackupFile   string
 }
 
 func Parse() (*Config, error) {
@@ -52,7 +51,6 @@ func Parse() (*Config, error) {
 	flag.StringVar(&cfg.AdminCertFile, "admin-cert", os.Getenv("STEP_WEB_ADMIN_CERT"), "Admin API client certificate chain")
 	flag.StringVar(&cfg.AdminKeyFile, "admin-key", os.Getenv("STEP_WEB_ADMIN_KEY"), "Admin API client private key")
 	flag.StringVar(&cfg.WebOrigin, "web-origin", os.Getenv("STEP_WEB_ORIGIN"), "HTTPS origin allowed to submit settings changes")
-	confirmationFile := flag.String("admin-confirmation-hash-file", os.Getenv("STEP_WEB_ADMIN_CONFIRMATION_HASH_FILE"), "File containing the SHA-256 hash of the random settings confirmation code")
 
 	flag.StringVar(&cfg.CATLSMin, "ca-tls-min", envOrDefault("STEP_WEB_CA_TLS_MIN", "5m"), "Global minimum TLS lifetime from the CA configuration")
 	flag.StringVar(&cfg.CATLSDefault, "ca-tls-default", envOrDefault("STEP_WEB_CA_TLS_DEFAULT", "24h"), "Global default TLS lifetime from the CA configuration")
@@ -104,9 +102,9 @@ func Parse() (*Config, error) {
 		fmt.Println("Generated random session secret (sessions will not survive restarts)")
 	}
 
-	if cfg.AdminCertFile != "" || cfg.AdminKeyFile != "" || *confirmationFile != "" || cfg.WebOrigin != "" {
-		if cfg.AdminCertFile == "" || cfg.AdminKeyFile == "" || *confirmationFile == "" || cfg.LoginProvisioner == "" {
-			return nil, fmt.Errorf("admin settings require a certificate, key, confirmation hash file, and a sign-in provisioner")
+	if cfg.AdminCertFile != "" || cfg.AdminKeyFile != "" || cfg.WebOrigin != "" {
+		if cfg.AdminCertFile == "" || cfg.AdminKeyFile == "" || cfg.LoginProvisioner == "" {
+			return nil, fmt.Errorf("admin settings require a certificate, key, and a sign-in provisioner")
 		}
 		for _, value := range []string{cfg.CATLSMin, cfg.CATLSDefault, cfg.CATLSMax} {
 			duration, err := time.ParseDuration(value)
@@ -119,14 +117,6 @@ func Parse() (*Config, error) {
 		}
 		if err := validateAdminURL(cfg.WebOrigin); err != nil {
 			return nil, fmt.Errorf("invalid web origin: %w", err)
-		}
-		raw, err := os.ReadFile(*confirmationFile)
-		if err != nil {
-			return nil, fmt.Errorf("read admin confirmation hash: %w", err)
-		}
-		cfg.AdminConfirmationHash, err = hex.DecodeString(strings.TrimSpace(string(raw)))
-		if err != nil || len(cfg.AdminConfirmationHash) != 32 {
-			return nil, fmt.Errorf("admin confirmation hash must contain 64 hexadecimal characters")
 		}
 	}
 

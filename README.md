@@ -267,11 +267,8 @@ For a systemd installation:
    them as `/etc/step-ca-web/admin/client.crt` and `client.key`, readable only by
    root and the system group `step-ca-web-admin`. The web service reads the
    chain on each request and uses the configured CA URL with TLS verification.
-3. Generate a random settings confirmation code with `openssl rand -hex 32`.
-   Deliver the code privately to operators. Write the hexadecimal SHA-256 of the
-   code **without a trailing newline in the hash input** to
-   `/etc/step-ca-web/settings-confirmation.hash` with mode 0600. The browser
-   sends the confirmation code only when applying settings.
+3. The panel checks write access using the signed-in session for the configured
+   login provisioner. Settings writes must originate at the panel's HTTPS origin.
 4. Set `STEP_WEB_ORIGIN` to the public HTTPS origin of the panel and
    `STEP_WEB_LOGIN_PROVISIONER` to the existing login provisioner in
    `/etc/step-ca-web/admin-ui.env`. Set `STEP_WEB_POLICY_PROTECTED_DNS` to a

@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     :model-value="modelValue"
-    title="Confirm Settings Changes"
+    title="Review Settings Changes"
     width="min(560px, 94vw)"
     :close-on-click-modal="!saving"
     :close-on-press-escape="!saving"
@@ -22,19 +22,9 @@
       show-icon
       class="confirm-alert"
     />
-    <el-form class="confirm-form" label-position="top" @submit.prevent="submit">
-      <el-form-item label="Administrator Confirmation Code">
-        <el-input
-          v-model="confirmation"
-          type="password"
-          autocomplete="off"
-          :disabled="saving"
-        />
-      </el-form-item>
-    </el-form>
     <template #footer>
       <el-button :disabled="saving" @click="emit('update:modelValue', false)">Cancel</el-button>
-      <el-button type="primary" :loading="saving" :disabled="!confirmation" @click="submit">
+      <el-button type="primary" :loading="saving" @click="emit('confirm')">
         Apply Changes
       </el-button>
     </template>
@@ -42,10 +32,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
 import type { SettingsChange } from '@/types'
 
-const props = defineProps<{
+defineProps<{
   modelValue: boolean
   changes: SettingsChange[]
   saving: boolean
@@ -53,17 +42,8 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   'update:modelValue': [open: boolean]
-  confirm: [confirmation: string]
+  confirm: []
 }>()
-const confirmation = ref('')
-
-watch(() => props.modelValue, (open) => {
-  if (!open) confirmation.value = ''
-})
-
-function submit() {
-  if (confirmation.value && !props.saving) emit('confirm', confirmation.value)
-}
 </script>
 
 <style scoped>
@@ -71,12 +51,8 @@ function submit() {
   overflow-wrap: anywhere;
 }
 
-.confirm-form,
 .confirm-alert {
   margin-top: 16px;
 }
 
-.confirm-form :deep(.el-form-item) {
-  margin-bottom: 0;
-}
 </style>

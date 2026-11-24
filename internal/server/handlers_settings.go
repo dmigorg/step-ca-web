@@ -2,7 +2,6 @@ package server
 
 import (
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -38,7 +37,6 @@ type acmeSettingsUpdate struct {
 	Durations            durations `json:"durations"`
 	UseDefaultChallenges bool      `json:"useDefaultChallenges"`
 	Challenges           []string  `json:"challenges"`
-	Confirmation         string    `json:"confirmation"`
 }
 
 const acmeAdminPath = "/admin/provisioners/acme"
@@ -105,10 +103,14 @@ func (s *Server) readSettingsUpdate(w http.ResponseWriter, r *http.Request, targ
 	return true
 }
 
-func (s *Server) authorizeSettingsWrite(w http.ResponseWriter, confirmation string) bool {
-	hash := sha256.Sum256([]byte(confirmation))
-	if subtle.ConstantTimeCompare(hash[:], s.cfg.AdminConfirmationHash) != 1 {
-		writeError(w, http.StatusForbidden, "Invalid administrator confirmation code")
+func (s *Server) authorizeSettingsWrite(w http.ResponseWriter, r *http.Request) bool {
+	session, err := s.sessMgr.Get(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "Sign in to change CA settings")
+		return false
+	}
+	if s.cfg.LoginProvisioner == "" || session.ProvisionerName != s.cfg.LoginProvisioner {
+		writeError(w, http.StatusForbidden, "This session cannot change CA settings")
 		return false
 	}
 	return true
@@ -247,7 +249,7 @@ func (s *Server) handleACMESettings(w http.ResponseWriter, r *http.Request) {
 
 	var update acmeSettingsUpdate
 	if r.Method == http.MethodPut {
-		if !s.readSettingsUpdate(w, r, &update) || !s.authorizeSettingsWrite(w, update.Confirmation) {
+		if !s.authorizeSettingsWrite(w, r) || !s.readSettingsUpdate(w, r, &update) {
 			return
 		}
 		s.settingsMu.Lock()
